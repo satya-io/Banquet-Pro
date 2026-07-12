@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { initializeCosmosDB } from './config/cosmos.js';
+import { connectDatabase } from './config/database.js';
 import authRoutes from './routes/auth.js';
 import enquiriesRoutes from './routes/enquiries.js';
 import bookingsRoutes from './routes/bookings.js';
@@ -37,6 +37,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     service: 'Banquet Pro API',
     version: '1.0.0',
+    database: 'MongoDB',
     timestamp: new Date().toISOString(),
   });
 });
@@ -53,7 +54,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Start server
 async function startServer() {
   try {
-    await initializeCosmosDB();
+    await connectDatabase();
     
     app.listen(PORT, () => {
       console.log('');
@@ -63,6 +64,7 @@ async function startServer() {
       console.log(`║  🌐 Server:   http://localhost:${PORT}          ║`);
       console.log(`║  📡 API:      http://localhost:${PORT}/api      ║`);
       console.log(`║  💊 Health:   http://localhost:${PORT}/api/health║`);
+      console.log('║  🗄️  Database: MongoDB                        ║');
       console.log('║  📋 Version:  1.0.0                          ║');
       console.log('╚══════════════════════════════════════════════╝');
       console.log('');

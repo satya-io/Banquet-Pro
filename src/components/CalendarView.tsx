@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, MapPin, Users, 
-  DollarSign, CheckCircle2, Clock, Plus, Info, X, Filter, Sparkles
+  IndianRupee, CheckCircle2, Clock, Plus, Info, X, Filter, Sparkles
 } from 'lucide-react';
 import { Booking, Enquiry } from '../types';
 import { Language, translations } from '../translations';

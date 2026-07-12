@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  X, User, Phone, Calendar, MapPin, DollarSign, Receipt, Sparkles, 
+  X, User, Phone, Calendar, MapPin, IndianRupee, Receipt, Sparkles, 
   Clock, Utensils, CheckCircle2, AlertTriangle, Info, CheckSquare, Square,
   FileText, Copy, Check
 } from 'lucide-react';
@@ -525,15 +525,15 @@ export default function NewBookingDrawer({
                 <div className="mt-3 bg-white p-3 rounded-lg border border-[#eeedf7] space-y-1.5">
                   <div className="flex justify-between text-xs font-semibold text-[#444653]">
                     <span>Applied Discount:</span>
-                    <span>₹{(discountAmount * 83).toLocaleString('en-IN')}</span>
+                    <span>₹{discountAmount.toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex justify-between text-xs font-bold text-[#1a1b22]">
                     <span>Final Contract Price:</span>
-                    <span>₹{(finalAmount * 83).toLocaleString('en-IN')}</span>
+                    <span>₹{finalAmount.toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex justify-between text-xs font-extrabold text-[#ba1a1a] pt-1 border-t border-[#eeedf7]">
                     <span>Outstanding Balance Due:</span>
-                    <span>₹{(pendingBalance * 83).toLocaleString('en-IN')}</span>
+                    <span>₹{pendingBalance.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
               </div>

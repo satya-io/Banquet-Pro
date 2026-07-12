@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   CalendarCheck, Plus, Search, Filter, Phone, Calendar, 
   MapPin, CheckCircle2, AlertTriangle, HelpCircle, X, ChevronRight, 
-  Receipt, Trash2, Edit2, Sparkles, Coins, DollarSign, Download, ArrowRight
+  Receipt, Trash2, Edit2, Sparkles, Coins, IndianRupee, Download, ArrowRight
 } from 'lucide-react';
 import { Booking } from '../types';
 import { Language, translations } from '../translations';
@@ -199,10 +199,10 @@ export default function BookingsView({
                         {role !== 'sales_agent' && (
                           <td className="px-6 py-4 text-right">
                             <p className="font-sans text-xs font-bold text-[#ba1a1a]">
-                              ₹{(book.pendingBalance * 83).toLocaleString('en-IN')}
+                              ₹{book.pendingBalance.toLocaleString('en-IN')}
                             </p>
                             <p className="text-[10px] text-[#444653] font-semibold mt-0.5">
-                              of ₹{(finalVal * 83).toLocaleString('en-IN')} Total
+                              of ₹{(finalVal).toLocaleString('en-IN')} Total
                             </p>
                           </td>
                         )}
@@ -340,14 +340,14 @@ export default function BookingsView({
                     <div className="flex justify-between text-[#444653]">
                       <span>Standard Venue & Catering Subtotal</span>
                       <span className="font-semibold text-[#1a1b22]">
-                        ₹{(selectedBooking.totalAmount * 83).toLocaleString('en-IN')}
+                        ₹{selectedBooking.totalAmount.toLocaleString('en-IN')}
                       </span>
                     </div>
 
                     {selectedBooking.discountPercent > 0 && (
                       <div className="flex justify-between text-[#006c49]">
                         <span>Applied Discount ({selectedBooking.discountPercent}%)</span>
-                        <span>-₹{(selectedBooking.discountAmount * 83).toLocaleString('en-IN')}</span>
+                        <span>-₹{selectedBooking.discountAmount.toLocaleString('en-IN')}</span>
                       </div>
                     )}
 
@@ -356,18 +356,18 @@ export default function BookingsView({
                     <div className="flex justify-between text-sm font-bold text-[#1a1b22]">
                       <span>Contract Grand Total</span>
                       <span className="text-[#00288e]">
-                        ₹{((selectedBooking.finalAmount || selectedBooking.totalAmount) * 83).toLocaleString('en-IN')}
+                        ₹{((selectedBooking.finalAmount || selectedBooking.totalAmount)).toLocaleString('en-IN')}
                       </span>
                     </div>
 
                     <div className="flex justify-between text-[#006c49]">
                       <span>Amount Received</span>
-                      <span>₹{(selectedBooking.amountReceived * 83).toLocaleString('en-IN')}</span>
+                      <span>₹{selectedBooking.amountReceived.toLocaleString('en-IN')}</span>
                     </div>
 
                     <div className="flex justify-between font-bold text-[#ba1a1a]">
                       <span>Remaining Balance Due</span>
-                      <span>₹{(selectedBooking.pendingBalance * 83).toLocaleString('en-IN')}</span>
+                      <span>₹{selectedBooking.pendingBalance.toLocaleString('en-IN')}</span>
                     </div>
                   </div>
                 </div>
@@ -387,7 +387,7 @@ export default function BookingsView({
                         type="number"
                         value={paymentAmountInput}
                         onChange={(e) => setPaymentAmountInput(e.target.value)}
-                        placeholder={`Up to ${(selectedBooking.pendingBalance * 83).toFixed(0)}`}
+                        placeholder={`Up to ${selectedBooking.pendingBalance.toFixed(0)}`}
                         className="w-full bg-white border border-[#c4c5d5] rounded-xl pl-6 pr-2 py-1.5 text-xs text-[#1a1b22] font-semibold focus:outline-none"
                       />
                     </div>

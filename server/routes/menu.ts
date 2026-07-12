@@ -1,81 +1,52 @@
 import { Router, Response } from 'express';
-import { getContainer } from '../config/cosmos.js';
+import { CateringItem } from '../models/CateringItem.js';
 import { AuthRequest, authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
 router.use(authMiddleware);
 
-// GET /api/menu — List all catering items for the authenticated tenant
+// GET /api/menu
 router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const tenantId = req.auth!.tenantId;
-    const container = getContainer('cateringItems');
-
-    const { resources } = await container.items
-      .query({
-        query: 'SELECT * FROM c WHERE c.tenantId = @tenantId ORDER BY c.category ASC, c.name ASC',
-        parameters: [{ name: '@tenantId', value: tenantId }],
-      })
-      .fetchAll();
-
-    res.json(resources);
+    const items = await CateringItem.find({ tenantId: req.auth!.tenantId }).sort({ category: 1, name: 1 });
+    res.json(items);
   } catch (error) {
     console.error('Get menu items error:', error);
     res.status(500).json({ error: 'Failed to fetch menu items.' });
   }
 });
 
-// POST /api/menu — Create a new catering item
+// POST /api/menu
 router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const tenantId = req.auth!.tenantId;
-    const container = getContainer('cateringItems');
-
-    const item = {
-      ...req.body,
-      tenantId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const { resource } = await container.items.create(item);
-    res.status(201).json(resource);
+    const item = new CateringItem({ ...req.body, tenantId: req.auth!.tenantId });
+    await item.save();
+    res.status(201).json(item);
   } catch (error) {
     console.error('Create menu item error:', error);
     res.status(500).json({ error: 'Failed to create menu item.' });
   }
 });
 
-// PUT /api/menu/:id — Update a catering item
+// PUT /api/menu/:id
 router.put('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const tenantId = req.auth!.tenantId;
-    const { id } = req.params;
-    const container = getContainer('cateringItems');
-
-    const updatedItem = {
-      ...req.body,
-      id,
-      tenantId,
-      updatedAt: new Date().toISOString(),
-    };
-
-    const { resource } = await container.item(id, tenantId).replace(updatedItem);
-    res.json(resource);
+    const updated = await CateringItem.findOneAndUpdate(
+      { id: req.params.id, tenantId: req.auth!.tenantId },
+      { ...req.body, tenantId: req.auth!.tenantId },
+      { new: true, upsert: true }
+    );
+    res.json(updated);
   } catch (error) {
     console.error('Update menu item error:', error);
     res.status(500).json({ error: 'Failed to update menu item.' });
   }
 });
 
-// DELETE /api/menu/:id — Delete a catering item
+// DELETE /api/menu/:id
 router.delete('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const tenantId = req.auth!.tenantId;
-    const { id } = req.params;
-    const container = getContainer('cateringItems');
-
-    await container.item(id, tenantId).delete();
+    await CateringItem.findOneAndDelete({ id: req.params.id, tenantId: req.auth!.tenantId });
     res.json({ message: 'Menu item deleted successfully.' });
   } catch (error) {
     console.error('Delete menu item error:', error);

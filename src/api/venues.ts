@@ -12,3 +12,7 @@ export async function createVenueSpace(space: VenueSpace): Promise<VenueSpace> {
 export async function deleteVenueSpace(id: string): Promise<void> {
   await api.delete(`/venues/${id}`);
 }
+
+export async function updateVenueSpace(id: string, space: Partial<VenueSpace>): Promise<VenueSpace> {
+  return api.put<VenueSpace>(`/venues/${id}`, space);
+}

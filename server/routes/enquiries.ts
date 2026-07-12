@@ -1,81 +1,52 @@
 import { Router, Response } from 'express';
-import { getContainer } from '../config/cosmos.js';
+import { Enquiry } from '../models/Enquiry.js';
 import { AuthRequest, authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
 router.use(authMiddleware);
 
-// GET /api/enquiries — List all enquiries for the authenticated tenant
+// GET /api/enquiries
 router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const tenantId = req.auth!.tenantId;
-    const container = getContainer('enquiries');
-
-    const { resources } = await container.items
-      .query({
-        query: 'SELECT * FROM c WHERE c.tenantId = @tenantId ORDER BY c._ts DESC',
-        parameters: [{ name: '@tenantId', value: tenantId }],
-      })
-      .fetchAll();
-
-    res.json(resources);
+    const enquiries = await Enquiry.find({ tenantId: req.auth!.tenantId }).sort({ createdAt: -1 });
+    res.json(enquiries);
   } catch (error) {
     console.error('Get enquiries error:', error);
     res.status(500).json({ error: 'Failed to fetch enquiries.' });
   }
 });
 
-// POST /api/enquiries — Create a new enquiry
+// POST /api/enquiries
 router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const tenantId = req.auth!.tenantId;
-    const container = getContainer('enquiries');
-
-    const enquiry = {
-      ...req.body,
-      tenantId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const { resource } = await container.items.create(enquiry);
-    res.status(201).json(resource);
+    const enquiry = new Enquiry({ ...req.body, tenantId: req.auth!.tenantId });
+    await enquiry.save();
+    res.status(201).json(enquiry);
   } catch (error) {
     console.error('Create enquiry error:', error);
     res.status(500).json({ error: 'Failed to create enquiry.' });
   }
 });
 
-// PUT /api/enquiries/:id — Update an enquiry
+// PUT /api/enquiries/:id
 router.put('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const tenantId = req.auth!.tenantId;
-    const { id } = req.params;
-    const container = getContainer('enquiries');
-
-    const updatedEnquiry = {
-      ...req.body,
-      id,
-      tenantId,
-      updatedAt: new Date().toISOString(),
-    };
-
-    const { resource } = await container.item(id, tenantId).replace(updatedEnquiry);
-    res.json(resource);
+    const updated = await Enquiry.findOneAndUpdate(
+      { id: req.params.id, tenantId: req.auth!.tenantId },
+      { ...req.body, tenantId: req.auth!.tenantId },
+      { new: true, upsert: true }
+    );
+    res.json(updated);
   } catch (error) {
     console.error('Update enquiry error:', error);
     res.status(500).json({ error: 'Failed to update enquiry.' });
   }
 });
 
-// DELETE /api/enquiries/:id — Delete an enquiry
+// DELETE /api/enquiries/:id
 router.delete('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const tenantId = req.auth!.tenantId;
-    const { id } = req.params;
-    const container = getContainer('enquiries');
-
-    await container.item(id, tenantId).delete();
+    await Enquiry.findOneAndDelete({ id: req.params.id, tenantId: req.auth!.tenantId });
     res.json({ message: 'Enquiry deleted successfully.' });
   } catch (error) {
     console.error('Delete enquiry error:', error);

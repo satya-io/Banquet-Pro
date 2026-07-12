@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   Settings, Users, Layers, Shield, Save, CheckCircle2, Plus, 
-  Trash2, Mail, MapPin, DollarSign, Sparkles, User, HelpCircle, X, Wrench 
+  Trash2, Mail, MapPin, IndianRupee, Sparkles, User, HelpCircle, X, Wrench,
+  Edit2, AlertTriangle
 } from 'lucide-react';
 import { VenueSettings, TeamMember, VenueSpace } from '../types';
 
@@ -14,6 +15,7 @@ interface SettingsViewProps {
   venueSpaces: VenueSpace[];
   onAddVenueSpace: (space: VenueSpace) => void;
   onDeleteVenueSpace: (id: string) => void;
+  onUpdateVenueSpace: (space: VenueSpace) => void;
 }
 
 export default function SettingsView({
@@ -24,7 +26,8 @@ export default function SettingsView({
   activeAdminId,
   venueSpaces,
   onAddVenueSpace,
-  onDeleteVenueSpace
+  onDeleteVenueSpace,
+  onUpdateVenueSpace
 }: SettingsViewProps) {
   // Local state for settings form
   const [nameInput, setNameInput] = useState(venueSettings.name);
@@ -42,6 +45,8 @@ export default function SettingsView({
   const [newMaxCap, setNewMaxCap] = useState('');
   const [newFeature, setNewFeature] = useState('');
   const [newFeaturesList, setNewFeaturesList] = useState<string[]>([]);
+  const [editingSpace, setEditingSpace] = useState<VenueSpace | null>(null);
+  const [deleteConfirmSpace, setDeleteConfirmSpace] = useState<VenueSpace | null>(null);
 
   // Handle general save
   const handleSaveSettings = (e: React.FormEvent) => {
@@ -70,7 +75,7 @@ export default function SettingsView({
     }
   };
 
-  // Create venue space
+  // Create or Update venue space
   const handleCreateSpace = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSpaceName.trim() || !newMinCap || !newMaxCap) {
@@ -78,23 +83,34 @@ export default function SettingsView({
       return;
     }
 
-    const newSpace: VenueSpace = {
-      id: `SPACE-${Date.now().toString().slice(-3)}`,
-      name: newSpaceName,
-      capacityMin: parseInt(newMinCap) || 50,
-      capacityMax: parseInt(newMaxCap) || 200,
-      image: '',
-      status: 'Active',
-      features: newFeaturesList.length > 0 ? newFeaturesList : ['Standard acoustics', 'Modern air-conditioning']
-    };
-
-    onAddVenueSpace(newSpace);
+    if (editingSpace) {
+      const updatedSpace: VenueSpace = {
+        ...editingSpace,
+        name: newSpaceName,
+        capacityMin: parseInt(newMinCap) || 50,
+        capacityMax: parseInt(newMaxCap) || 200,
+        features: newFeaturesList.length > 0 ? newFeaturesList : ['Standard acoustics', 'Modern air-conditioning']
+      };
+      onUpdateVenueSpace(updatedSpace);
+    } else {
+      const newSpace: VenueSpace = {
+        id: `SPACE-${Date.now().toString().slice(-3)}`,
+        name: newSpaceName,
+        capacityMin: parseInt(newMinCap) || 50,
+        capacityMax: parseInt(newMaxCap) || 200,
+        image: '',
+        status: 'Active',
+        features: newFeaturesList.length > 0 ? newFeaturesList : ['Standard acoustics', 'Modern air-conditioning']
+      };
+      onAddVenueSpace(newSpace);
+    }
 
     // Reset
     setNewSpaceName('');
     setNewMinCap('');
     setNewMaxCap('');
     setNewFeaturesList([]);
+    setEditingSpace(null);
     setShowSpaceModal(false);
   };
 
@@ -158,8 +174,8 @@ export default function SettingsView({
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-[#444653]">₹</span>
                   <input
                     type="number"
-                    value={parseFloat(baseDepositInput) * 83}
-                    onChange={(e) => setBaseDepositInput(String(parseFloat(e.target.value) / 83))}
+                    value={baseDepositInput}
+                    onChange={(e) => setBaseDepositInput(e.target.value)}
                     className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl pl-6 pr-3 py-2 text-sm font-semibold text-[#1a1b22] focus:outline-none"
                   />
                 </div>
@@ -306,7 +322,14 @@ export default function SettingsView({
                 <span>Venue Allocation spaces</span>
               </h3>
               <button
-                onClick={() => setShowSpaceModal(true)}
+                onClick={() => {
+                  setEditingSpace(null);
+                  setNewSpaceName('');
+                  setNewMinCap('');
+                  setNewMaxCap('');
+                  setNewFeaturesList([]);
+                  setShowSpaceModal(true);
+                }}
                 className="p-1.5 hover:bg-[#f4f2fc] text-[#00288e] rounded-lg transition-colors cursor-pointer"
                 title="Create space"
               >
@@ -324,17 +347,31 @@ export default function SettingsView({
                         Active Hall
                       </span>
                     </div>
-                    <button
-                      onClick={() => {
-                        if (confirm(`Remove venue allocation space: ${space.name}?`)) {
-                          onDeleteVenueSpace(space.id);
-                        }
-                      }}
-                      className="p-1 hover:bg-[#ffdad6] hover:text-[#ba1a1a] text-[#444653] rounded-lg transition-colors cursor-pointer"
-                      title="Remove Space"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => {
+                          setEditingSpace(space);
+                          setNewSpaceName(space.name);
+                          setNewMinCap(String(space.capacityMin));
+                          setNewMaxCap(String(space.capacityMax));
+                          setNewFeaturesList(space.features || []);
+                          setShowSpaceModal(true);
+                        }}
+                        className="p-1 hover:bg-[#eeedf7] text-[#00288e] rounded-lg transition-colors cursor-pointer"
+                        title="Edit Space"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDeleteConfirmSpace(space);
+                        }}
+                        className="p-1 hover:bg-[#ffdad6] hover:text-[#ba1a1a] text-[#444653] rounded-lg transition-colors cursor-pointer"
+                        title="Remove Space"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-1 text-[10px] text-[#444653] font-semibold pt-1 border-t border-[#eeedf7]">
@@ -348,14 +385,19 @@ export default function SettingsView({
         </div>
       </div>
 
-      {/* Add New Space Modal */}
+      {/* Add / Edit Space Modal */}
       {showSpaceModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl animate-scale-up">
             <div className="flex justify-between items-center border-b border-[#e3e1eb] pb-3">
-              <h3 className="font-sans font-bold text-lg text-[#1a1b22]">Add New Venue Space</h3>
+              <h3 className="font-sans font-bold text-lg text-[#1a1b22]">
+                {editingSpace ? 'Edit Venue Space' : 'Add New Venue Space'}
+              </h3>
               <button 
-                onClick={() => setShowSpaceModal(false)}
+                onClick={() => {
+                  setShowSpaceModal(false);
+                  setEditingSpace(null);
+                }}
                 className="p-1 hover:bg-[#f4f2fc] rounded-full text-[#444653] cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -407,7 +449,10 @@ export default function SettingsView({
               <div className="flex justify-end gap-2.5 pt-4 border-t border-[#e3e1eb]">
                 <button
                   type="button"
-                  onClick={() => setShowSpaceModal(false)}
+                  onClick={() => {
+                    setShowSpaceModal(false);
+                    setEditingSpace(null);
+                  }}
                   className="px-4 py-2 bg-white text-[#444653] rounded-xl hover:bg-[#f4f2fc] border border-[#c4c5d5] cursor-pointer"
                 >
                   Cancel
@@ -416,10 +461,48 @@ export default function SettingsView({
                   type="submit"
                   className="px-4 py-2 bg-[#00288e] text-white rounded-xl hover:bg-[#1e40af] cursor-pointer"
                 >
-                  Register Space
+                  {editingSpace ? 'Update Space Details' : 'Register Space'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Delete Confirmation Modal */}
+      {deleteConfirmSpace && (
+        <div className="fixed inset-0 bg-black/55 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-scale-up text-center">
+            <div className="mx-auto w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-600">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            
+            <div className="space-y-1.5">
+              <h3 className="font-sans font-extrabold text-base text-[#1a1b22]">Delete Venue Space?</h3>
+              <p className="text-xs text-[#444653] leading-relaxed">
+                Are you sure you want to remove <span className="font-bold text-[#1a1b22]">{deleteConfirmSpace.name}</span>? This allocation space will be deleted from your venue list.
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmSpace(null)}
+                className="flex-1 py-2 bg-white text-[#444653] font-semibold text-xs rounded-xl hover:bg-[#f4f2fc] border border-[#c4c5d5] cursor-pointer transition-colors"
+              >
+                No, Keep it
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteVenueSpace(deleteConfirmSpace.id);
+                  setDeleteConfirmSpace(null);
+                }}
+                className="flex-1 py-2 bg-red-600 text-white font-semibold text-xs rounded-xl hover:bg-red-700 cursor-pointer transition-colors shadow-sm"
+              >
+                Yes, Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

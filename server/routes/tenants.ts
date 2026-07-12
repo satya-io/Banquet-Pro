@@ -1,45 +1,34 @@
 import { Router, Response } from 'express';
-import { getContainer } from '../config/cosmos.js';
+import { Tenant } from '../models/Tenant.js';
 import { AuthRequest, authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
 router.use(authMiddleware);
 
-// GET /api/tenants — List all tenants (admin only)
+// GET /api/tenants
 router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (req.auth!.role !== 'admin') {
       res.status(403).json({ error: 'Only admins can list tenants.' });
       return;
     }
-
-    const container = getContainer('tenants');
-    const { resources } = await container.items
-      .query('SELECT c.id, c.name, c.ownerUsername, c.staffUsername FROM c')
-      .fetchAll();
-
-    res.json(resources);
+    const tenants = await Tenant.find({}, 'tenantId name ownerUsername staffUsername');
+    res.json(tenants);
   } catch (error) {
     console.error('Get tenants error:', error);
     res.status(500).json({ error: 'Failed to fetch tenants.' });
   }
 });
 
-// GET /api/tenants/:id — Get a specific tenant (sanitized, no passwords)
+// GET /api/tenants/:id
 router.get('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    const container = getContainer('tenants');
-
-    const { resource } = await container.item(id, id).read();
-    if (!resource) {
+    const tenant = await Tenant.findOne({ tenantId: req.params.id }, '-ownerPassword -staffPassword');
+    if (!tenant) {
       res.status(404).json({ error: 'Tenant not found.' });
       return;
     }
-
-    // Strip passwords from response
-    const { ownerPassword, staffPassword, ...sanitized } = resource;
-    res.json(sanitized);
+    res.json(tenant);
   } catch (error) {
     console.error('Get tenant error:', error);
     res.status(500).json({ error: 'Failed to fetch tenant.' });

@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import React from 'react';
 import { 
-  Inbox, CheckCircle2, Calendar, DollarSign, TrendingUp, 
+  Inbox, CheckCircle2, Calendar, IndianRupee, TrendingUp, 
   Plus, CalendarDays, MapPin, Phone, MessageSquare, Edit2, 
-  MoreVertical, FileText, Download, Users, SlidersHorizontal, Eye
+  MoreVertical, FileText, Download, Users, Eye
 } from 'lucide-react';
 import { Booking, Enquiry } from '../types';
 
@@ -25,8 +25,7 @@ export default function DashboardView({
   onOpenNewBookingDrawer,
   onOpenNewEnquiryModal
 }: DashboardViewProps) {
-  // Local state to toggle metric currency format for presentation
-  const [currency, setCurrency] = useState<'INR' | 'USD'>('INR');
+
 
   // Filter inquiries based on global search
   const filteredEnquiries = enquiries.filter(enq => 
@@ -42,13 +41,9 @@ export default function DashboardView({
   const totalEnquiriesCount = enquiries.length + 118; // base offset to match "124" mockup
   const confirmedBookingsCount = bookings.filter(b => b.status === 'Booked').length + 38; // matches "42" mockup
 
-  const formatMoney = (amount: number, style: 'INR' | 'USD') => {
-    if (style === 'INR') {
-      // Show lakhs formatted or literal rupees
-      return amount >= 1000 ? `₹${(amount / 100000).toFixed(1)}L` : `₹${amount.toLocaleString('en-IN')}`;
-    } else {
-      return amount >= 1000 ? `$${(amount / 1000).toFixed(1)}k` : `$${amount.toLocaleString('en-US')}`;
-    }
+  const formatMoney = (amount: number) => {
+    // Show lakhs formatted or literal rupees
+    return amount >= 100000 ? `₹${(amount / 100000).toFixed(1)}L` : `₹${amount.toLocaleString('en-IN')}`;
   };
 
   return (
@@ -59,17 +54,7 @@ export default function DashboardView({
           <h2 className="font-sans font-bold text-3xl text-[#1a1b22] tracking-tight">Dashboard Overview</h2>
           <p className="text-[#444653] text-sm mt-1">Good morning, Rajesh. Here's what's happening at Grand Ballroom today.</p>
         </div>
-
         <div className="flex items-center gap-2">
-          {/* Currency Presentation Toggle */}
-          <button 
-            onClick={() => setCurrency(prev => prev === 'INR' ? 'USD' : 'INR')}
-            className="px-3 py-2 text-xs font-semibold bg-white border border-[#c4c5d5] text-[#00288e] rounded-xl hover:bg-[#f4f2fc] transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Format: {currency}</span>
-          </button>
-          
           <button
             onClick={onOpenNewEnquiryModal}
             className="bg-[#00288e] text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-[#1e40af] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md cursor-pointer"
@@ -136,7 +121,7 @@ export default function DashboardView({
         <div className="bg-white p-6 rounded-2xl border-l-4 border-[#1e40af] shadow-sm flex flex-col justify-between hover:translate-y-[-2px] transition-all duration-200">
           <div className="flex justify-between items-start mb-4">
             <span className="p-3 bg-[#dde1ff] text-[#00288e] rounded-xl">
-              <DollarSign className="w-5 h-5" />
+              <IndianRupee className="w-5 h-5" />
             </span>
             <span className="text-[#006c49] text-xs font-bold flex items-center bg-[#6cf8bb]/20 px-2 py-0.5 rounded-full gap-0.5">
               <span>+15%</span>
@@ -146,7 +131,7 @@ export default function DashboardView({
           <div>
             <p className="text-[#444653] text-xs uppercase font-semibold tracking-wider">Monthly Revenue</p>
             <h3 className="font-sans font-extrabold text-3xl text-[#1a1b22] mt-1">
-              {currency === 'INR' ? '₹12.5L' : '$142.8k'}
+              ₹12.5L
             </h3>
           </div>
         </div>
@@ -221,7 +206,7 @@ export default function DashboardView({
                   <div className="space-y-0.5">
                     <p className="text-[10px] text-[#444653] uppercase tracking-wider font-semibold">Budget Estimate</p>
                     <p className="font-sans font-bold text-xs text-[#00288e]">
-                      {currency === 'INR' ? `₹${(enq.budget * 83).toLocaleString('en-IN')}` : `$${enq.budget.toLocaleString('en-US')}`}
+                      ₹{enq.budget.toLocaleString('en-IN')}
                     </p>
                   </div>
                 </div>
@@ -312,7 +297,7 @@ export default function DashboardView({
                     <div className="flex justify-between items-center">
                       <span className="text-[#444653] text-xs">Total Contract Value</span>
                       <span className="font-bold text-[#1a1b22] text-sm">
-                        {currency === 'INR' ? `₹${(total * 83).toLocaleString('en-IN')}` : `$${total.toLocaleString('en-US')}`}
+                        ₹{total.toLocaleString('en-IN')}
                       </span>
                     </div>
 
@@ -332,7 +317,7 @@ export default function DashboardView({
                         </span>
                       ) : (
                         <span className="font-bold text-[#ba1a1a] text-xs">
-                          {currency === 'INR' ? `₹${(book.pendingBalance * 83).toLocaleString('en-IN')}` : `$${book.pendingBalance.toLocaleString('en-US')}`} Pending
+                          ₹{book.pendingBalance.toLocaleString('en-IN')} Pending
                         </span>
                       )}
                     </div>

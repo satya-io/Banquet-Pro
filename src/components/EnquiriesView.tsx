@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Inbox, Search, Filter, Phone, Mail, Calendar, MapPin, 
-  Users, DollarSign, ArrowRight, MessageSquare, Plus, Trash2, 
+  Users, IndianRupee, ArrowRight, MessageSquare, Plus, Trash2, 
   CheckCircle, PlusCircle, User, MessageCircle, AlertCircle, 
   MessageSquareCode, ChevronRight, X, Clock
 } from 'lucide-react';
@@ -236,16 +236,13 @@ export default function EnquiriesView({
                         <td className="px-6 py-4 text-right">
                           <div>
                             <p className="font-sans text-xs font-bold text-[#00288e]">
-                              ₹{(enq.budget * 83).toLocaleString('en-IN')}
-                            </p>
-                            <p className="text-[10px] text-[#444653] font-semibold">
-                              ${enq.budget.toLocaleString('en-US')} USD
+                              ₹{enq.budget.toLocaleString('en-IN')}
                             </p>
                           </div>
                           {enq.bookingAmount !== undefined && enq.bookingAmount > 0 && (
                             <div className="mt-1 pt-1 border-t border-[#eeedf7] text-[10px] text-[#444653]">
-                              <p>Paid: ${enq.bookingAmount}</p>
-                              <p className="font-bold text-[#ba1a1a]">Bal: ${enq.pendingBalance}</p>
+                              <p>Paid: ₹{enq.bookingAmount?.toLocaleString('en-IN')}</p>
+                              <p className="font-bold text-[#ba1a1a]">Bal: ₹{enq.pendingBalance?.toLocaleString('en-IN')}</p>
                             </div>
                           )}
                         </td>
@@ -395,7 +392,7 @@ export default function EnquiriesView({
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <label className="text-[10px] text-[#444653] font-bold block">Quoted Price ($)</label>
+                    <label className="text-[10px] text-[#444653] font-bold block">Quoted Price (₹)</label>
                     <input
                       type="number"
                       value={editPrice}
@@ -406,7 +403,7 @@ export default function EnquiriesView({
 
                   {selectedEnquiry.status === 'Confirmed' ? (
                     <div className="space-y-1">
-                      <label className="text-[10px] text-[#444653] font-bold block">Deposit Paid ($)</label>
+                      <label className="text-[10px] text-[#444653] font-bold block">Deposit Paid (₹)</label>
                       <input
                         type="number"
                         value={editBookingAmount}
@@ -416,7 +413,7 @@ export default function EnquiriesView({
                     </div>
                   ) : (
                     <div className="space-y-1 opacity-60">
-                      <label className="text-[10px] text-[#444653] font-bold block">Deposit Paid ($)</label>
+                      <label className="text-[10px] text-[#444653] font-bold block">Deposit Paid (₹)</label>
                       <div className="bg-gray-100 border border-gray-200 rounded-lg px-2 py-1 text-xs text-[#444653] select-none">
                         Unconfirmed
                       </div>
@@ -427,7 +424,7 @@ export default function EnquiriesView({
                 {selectedEnquiry.status === 'Confirmed' && (
                   <div className="text-[10px] font-bold flex justify-between text-[#ba1a1a] pt-1 border-t border-dashed border-[#c4c5d5]">
                     <span>Outstanding Balance:</span>
-                    <span>${Math.max(0, (parseFloat(editPrice) || 0) - (parseFloat(editBookingAmount) || 0))} USD</span>
+                    <span>₹{Math.max(0, (parseFloat(editPrice) || 0) - (parseFloat(editBookingAmount) || 0)).toLocaleString('en-IN')}</span>
                   </div>
                 )}
 

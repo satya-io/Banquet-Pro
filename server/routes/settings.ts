@@ -1,73 +1,30 @@
 import { Router, Response } from 'express';
-import { getContainer } from '../config/cosmos.js';
+import { Settings } from '../models/Settings.js';
+import { TeamMember } from '../models/TeamMember.js';
 import { AuthRequest, authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
 router.use(authMiddleware);
 
-// GET /api/settings — Get venue settings for the authenticated tenant
+// GET /api/settings
 router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const tenantId = req.auth!.tenantId;
-    const container = getContainer('settings');
-
-    const { resources } = await container.items
-      .query({
-        query: 'SELECT * FROM c WHERE c.tenantId = @tenantId',
-        parameters: [{ name: '@tenantId', value: tenantId }],
-      })
-      .fetchAll();
-
-    if (resources.length === 0) {
-      res.json(null);
-      return;
-    }
-
-    res.json(resources[0]);
+    const settings = await Settings.findOne({ tenantId: req.auth!.tenantId });
+    res.json(settings || null);
   } catch (error) {
     console.error('Get settings error:', error);
     res.status(500).json({ error: 'Failed to fetch settings.' });
   }
 });
 
-// PUT /api/settings — Update venue settings
+// PUT /api/settings
 router.put('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const tenantId = req.auth!.tenantId;
-    const container = getContainer('settings');
-
-    // Check if settings document exists
-    const { resources } = await container.items
-      .query({
-        query: 'SELECT * FROM c WHERE c.tenantId = @tenantId',
-        parameters: [{ name: '@tenantId', value: tenantId }],
-      })
-      .fetchAll();
-
-    let result;
-    if (resources.length > 0) {
-      // Update existing
-      const updatedSettings = {
-        ...resources[0],
-        ...req.body,
-        tenantId,
-        updatedAt: new Date().toISOString(),
-      };
-      const { resource } = await container.item(resources[0].id, tenantId).replace(updatedSettings);
-      result = resource;
-    } else {
-      // Create new settings doc
-      const newSettings = {
-        ...req.body,
-        id: `settings-${tenantId}`,
-        tenantId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      const { resource } = await container.items.create(newSettings);
-      result = resource;
-    }
-
+    const result = await Settings.findOneAndUpdate(
+      { tenantId: req.auth!.tenantId },
+      { ...req.body, tenantId: req.auth!.tenantId },
+      { new: true, upsert: true }
+    );
     res.json(result);
   } catch (error) {
     console.error('Update settings error:', error);
@@ -75,20 +32,11 @@ router.put('/', async (req: AuthRequest, res: Response): Promise<void> => {
   }
 });
 
-// GET /api/team — List team members for the authenticated tenant
+// GET /api/settings/team
 router.get('/team', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const tenantId = req.auth!.tenantId;
-    const container = getContainer('teamMembers');
-
-    const { resources } = await container.items
-      .query({
-        query: 'SELECT * FROM c WHERE c.tenantId = @tenantId',
-        parameters: [{ name: '@tenantId', value: tenantId }],
-      })
-      .fetchAll();
-
-    res.json(resources);
+    const members = await TeamMember.find({ tenantId: req.auth!.tenantId });
+    res.json(members);
   } catch (error) {
     console.error('Get team members error:', error);
     res.status(500).json({ error: 'Failed to fetch team members.' });

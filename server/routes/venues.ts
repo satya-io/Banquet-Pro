@@ -1,58 +1,56 @@
 import { Router, Response } from 'express';
-import { getContainer } from '../config/cosmos.js';
+import { VenueSpace } from '../models/VenueSpace.js';
 import { AuthRequest, authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
 router.use(authMiddleware);
 
-// GET /api/venues — List all venue spaces for the authenticated tenant
+// GET /api/venues
 router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const tenantId = req.auth!.tenantId;
-    const container = getContainer('venueSpaces');
-
-    const { resources } = await container.items
-      .query({
-        query: 'SELECT * FROM c WHERE c.tenantId = @tenantId',
-        parameters: [{ name: '@tenantId', value: tenantId }],
-      })
-      .fetchAll();
-
-    res.json(resources);
+    const venues = await VenueSpace.find({ tenantId: req.auth!.tenantId });
+    res.json(venues);
   } catch (error) {
     console.error('Get venues error:', error);
     res.status(500).json({ error: 'Failed to fetch venue spaces.' });
   }
 });
 
-// POST /api/venues — Create a new venue space
+// POST /api/venues
 router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const tenantId = req.auth!.tenantId;
-    const container = getContainer('venueSpaces');
-
-    const venue = {
-      ...req.body,
-      tenantId,
-      createdAt: new Date().toISOString(),
-    };
-
-    const { resource } = await container.items.create(venue);
-    res.status(201).json(resource);
+    const venue = new VenueSpace({ ...req.body, tenantId: req.auth!.tenantId });
+    await venue.save();
+    res.status(201).json(venue);
   } catch (error) {
     console.error('Create venue error:', error);
     res.status(500).json({ error: 'Failed to create venue space.' });
   }
 });
 
-// DELETE /api/venues/:id — Delete a venue space
+// PUT /api/venues/:id
+router.put('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const venue = await VenueSpace.findOneAndUpdate(
+      { id: req.params.id, tenantId: req.auth!.tenantId },
+      { $set: req.body },
+      { new: true }
+    );
+    if (!venue) {
+      res.status(404).json({ error: 'Venue space not found.' });
+      return;
+    }
+    res.json(venue);
+  } catch (error) {
+    console.error('Update venue error:', error);
+    res.status(500).json({ error: 'Failed to update venue space.' });
+  }
+});
+
+// DELETE /api/venues/:id
 router.delete('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const tenantId = req.auth!.tenantId;
-    const { id } = req.params;
-    const container = getContainer('venueSpaces');
-
-    await container.item(id, tenantId).delete();
+    await VenueSpace.findOneAndDelete({ id: req.params.id, tenantId: req.auth!.tenantId });
     res.json({ message: 'Venue space deleted successfully.' });
   } catch (error) {
     console.error('Delete venue error:', error);

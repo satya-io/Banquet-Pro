@@ -278,6 +278,15 @@ export default function App() {
     }
   };
 
+  const handleUpdateVenueSpace = async (updatedSpace: VenueSpace) => {
+    setVenueSpaces(prev => prev.map(s => s.id === updatedSpace.id ? updatedSpace : s));
+    try {
+      await venuesApi.updateVenueSpace(updatedSpace.id, updatedSpace);
+    } catch (error) {
+      console.error('Failed to update venue space on server:', error);
+    }
+  };
+
   const handleUpdateSettings = async (newSettings: VenueSettings) => {
     setVenueSettings(newSettings);
     try {
@@ -399,6 +408,7 @@ export default function App() {
             venueSpaces={venueSpaces}
             onAddVenueSpace={handleAddVenueSpace}
             onDeleteVenueSpace={handleDeleteVenueSpace}
+            onUpdateVenueSpace={handleUpdateVenueSpace}
           />
         );
       default:
