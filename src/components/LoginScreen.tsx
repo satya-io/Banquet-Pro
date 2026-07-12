@@ -6,9 +6,10 @@ import {
   initialEnquiries, initialBookings, initialCateringItems, 
   initialVenueSpaces, initialTeamMembers, initialVenueSettings 
 } from '../data';
+import { loginApi } from '../api/auth';
 
 interface LoginScreenProps {
-  onLogin: (tenantId: string, role: 'admin' | 'sales_agent') => void;
+  onLogin: (tenantId: string, role: 'admin' | 'sales_agent', tenantName?: string) => void;
   language: Language;
   onLanguageChange: (lang: Language) => void;
 }
@@ -25,6 +26,7 @@ export default function LoginScreen({ onLogin, language, onLanguageChange }: Log
   const [password, setPassword] = useState('admin123');
   const [selectedRole, setSelectedRole] = useState<'admin' | 'sales_agent'>('admin');
   const [error, setError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Registration Form
   const [newVenueName, setNewVenueName] = useState('');
@@ -98,23 +100,38 @@ export default function LoginScreen({ onLogin, language, onLanguageChange }: Log
     }
   }, [selectedTenantId, selectedRole, tenants]);
 
-  const handleSubmitLogin = (e: React.FormEvent) => {
+  const handleSubmitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const currTenant = tenants.find(t => t.id === selectedTenantId);
-    if (!currTenant) {
-      setError('Please select a valid Banquet Venue');
-      return;
-    }
+    setError('');
+    setIsLoggingIn(true);
 
-    if (username === currTenant.ownerUsername && password === currTenant.ownerPassword) {
-      onLogin(currTenant.id, 'admin');
-    } else if (username === currTenant.staffUsername && password === currTenant.staffPassword) {
-      onLogin(currTenant.id, 'sales_agent');
-    } else {
-      setError(language === 'en' 
-        ? 'Invalid credentials for the selected Banquet Venue. Please check and try again.' 
-        : 'चयनित बैंक्वेट वेन्यू के लिए गलत क्रेडेंशियल्स। कृपया जाँचें और पुनः प्रयास करें।'
-      );
+    try {
+      // Try API-based login first
+      const response = await loginApi(username, password, selectedTenantId || undefined);
+      onLogin(response.tenantId, response.role, response.tenantName);
+    } catch (apiError) {
+      // Fallback to local credential check if API is unavailable
+      const currTenant = tenants.find(t => t.id === selectedTenantId);
+      if (!currTenant) {
+        setError(language === 'en' 
+          ? 'Please select a valid Banquet Venue' 
+          : 'कृपया एक मान्य बैंक्वेट वेन्यू चुनें');
+        setIsLoggingIn(false);
+        return;
+      }
+
+      if (username === currTenant.ownerUsername && password === currTenant.ownerPassword) {
+        onLogin(currTenant.id, 'admin', currTenant.name);
+      } else if (username === currTenant.staffUsername && password === currTenant.staffPassword) {
+        onLogin(currTenant.id, 'sales_agent', currTenant.name);
+      } else {
+        setError(language === 'en' 
+          ? 'Invalid credentials for the selected Banquet Venue. Please check and try again.' 
+          : 'चयनित बैंक्वेट वेन्यू के लिए गलत क्रेडेंशियल्स। कृपया जाँचें और पुनः प्रयास करें।'
+        );
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -193,7 +210,7 @@ export default function LoginScreen({ onLogin, language, onLanguageChange }: Log
     );
     
     setTimeout(() => {
-      onLogin(newTenantId, 'admin');
+      onLogin(newTenantId, 'admin', newTenant.name);
     }, 1500);
   };
 

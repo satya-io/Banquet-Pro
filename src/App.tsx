@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   initialEnquiries, initialBookings, initialCateringItems, 
   initialVenueSpaces, initialTeamMembers, initialVenueSettings 
@@ -18,97 +18,108 @@ import LoginScreen from './components/LoginScreen';
 import { LayoutDashboard, Inbox, CalendarCheck, Calendar as CalendarIcon, ChefHat, Settings } from 'lucide-react';
 import { Language, translations } from './translations';
 
+// API imports
+import { getAuthToken } from './api/client';
+import { logoutApi } from './api/auth';
+import * as enquiriesApi from './api/enquiries';
+import * as bookingsApi from './api/bookings';
+import * as menuApi from './api/menu';
+import * as venuesApi from './api/venues';
+import * as settingsApi from './api/settings';
+
 export default function App() {
-  // 1. Tenants master state
-  const [tenants, setTenants] = useState<Tenant[]>(() => {
-    const saved = localStorage.getItem('tenants');
-    if (saved) return JSON.parse(saved);
-    return [
-      {
-        id: 'TENANT-DEFAULT',
-        name: 'Grand Royal Banquet Hall',
-        ownerUsername: 'admin',
-        ownerPassword: 'admin123',
-        staffUsername: 'sales',
-        staffPassword: 'sales123',
-        enquiries: initialEnquiries,
-        bookings: initialBookings,
-        venueSpaces: initialVenueSpaces,
-        cateringItems: initialCateringItems,
-        settings: initialVenueSettings,
-        teamMembers: initialTeamMembers
-      }
-    ];
+  // Auth state
+  const [userRole, setUserRole] = useState<'admin' | 'sales_agent' | null>(() => {
+    return (localStorage.getItem('userRole') as 'admin' | 'sales_agent') || null;
   });
 
   const [activeTenantId, setActiveTenantId] = useState<string>(() => {
     return localStorage.getItem('activeTenantId') || 'TENANT-DEFAULT';
   });
 
-  // Find the current active tenant
-  const activeTenant = tenants.find(t => t.id === activeTenantId) || tenants[0];
+  const [tenantName, setTenantName] = useState<string>(() => {
+    return localStorage.getItem('tenantName') || 'Grand Royal Banquet Hall';
+  });
 
-  // Load and preserve state with robust localStorage Fallbacks
+  // UI state
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
     return (localStorage.getItem('activeTab') as ActiveTab) || 'dashboard';
   });
-
   const [searchQuery, setSearchQuery] = useState('');
-
-  // 2. Active Tenant dynamic sub-states
-  const [enquiries, setEnquiries] = useState<Enquiry[]>(() => activeTenant.enquiries);
-  const [bookings, setBookings] = useState<Booking[]>(() => activeTenant.bookings);
-  const [cateringItems, setCateringItems] = useState<CateringItem[]>(() => activeTenant.cateringItems);
-  const [venueSpaces, setVenueSpaces] = useState<VenueSpace[]>(() => activeTenant.venueSpaces);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => activeTenant.teamMembers);
-  const [venueSettings, setVenueSettings] = useState<VenueSettings>(() => activeTenant.settings);
-
-  const [activeAdminId, setActiveAdminId] = useState(() => {
-    return localStorage.getItem('activeAdminId') || 'TEAM-001';
-  });
-
-  // Dialog State controls
   const [newEnquiryOpen, setNewEnquiryOpen] = useState(false);
   const [newBookingOpen, setNewBookingOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Conversion prefill helper
   const [prefillEnquiry, setPrefillEnquiry] = useState<Enquiry | null>(null);
-
-  // Active Enquiry selection in panel
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Language State
   const [language, setLanguage] = useState<Language>(() => {
     return (localStorage.getItem('language') as Language) || 'en';
   });
 
+  // Data state — initialized from static data as fallback
+  const [enquiries, setEnquiries] = useState<Enquiry[]>(initialEnquiries);
+  const [bookings, setBookings] = useState<Booking[]>(initialBookings);
+  const [cateringItems, setCateringItems] = useState<CateringItem[]>(initialCateringItems);
+  const [venueSpaces, setVenueSpaces] = useState<VenueSpace[]>(initialVenueSpaces);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(initialTeamMembers);
+  const [venueSettings, setVenueSettings] = useState<VenueSettings>(initialVenueSettings);
+
+  const [activeAdminId, setActiveAdminId] = useState(() => {
+    return localStorage.getItem('activeAdminId') || 'TEAM-001';
+  });
+
+  // ─── Fetch All Data from API ─────────────────────────────────────────────────
+  const fetchAllData = useCallback(async () => {
+    if (!getAuthToken()) return;
+
+    setIsLoading(true);
+    try {
+      const [enqData, bookData, menuData, venueData, settData, teamData] = await Promise.all([
+        enquiriesApi.getEnquiries().catch(() => null),
+        bookingsApi.getBookings().catch(() => null),
+        menuApi.getMenuItems().catch(() => null),
+        venuesApi.getVenueSpaces().catch(() => null),
+        settingsApi.getSettings().catch(() => null),
+        settingsApi.getTeamMembers().catch(() => null),
+      ]);
+
+      if (enqData) setEnquiries(enqData);
+      if (bookData) setBookings(bookData);
+      if (menuData) setCateringItems(menuData);
+      if (venueData) setVenueSpaces(venueData);
+      if (settData) setVenueSettings(settData);
+      if (teamData) setTeamMembers(teamData);
+    } catch (error) {
+      console.error('Failed to fetch data from API:', error);
+      // Graceful fallback — keep existing state (static data or last fetched)
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Fetch data when user is authenticated
+  useEffect(() => {
+    if (userRole && getAuthToken()) {
+      fetchAllData();
+    }
+  }, [userRole, fetchAllData]);
+
+  // ─── Language ────────────────────────────────────────────────────────────────
   const handleLanguageChange = (lang: Language) => {
     setLanguage(lang);
     localStorage.setItem('language', lang);
   };
 
-  // User Role State
-  const [userRole, setUserRole] = useState<'admin' | 'sales_agent' | null>(() => {
-    return (localStorage.getItem('userRole') as 'admin' | 'sales_agent') || null;
-  });
-
-  const handleLogin = (tenantId: string, role: 'admin' | 'sales_agent') => {
+  // ─── Login / Logout ──────────────────────────────────────────────────────────
+  const handleLogin = (tenantId: string, role: 'admin' | 'sales_agent', name?: string) => {
     setActiveTenantId(tenantId);
     setUserRole(role);
+    if (name) setTenantName(name);
     localStorage.setItem('userRole', role);
     localStorage.setItem('activeTenantId', tenantId);
-
-    // Sync sub-states instantly on login
-    const targetTenant = tenants.find(t => t.id === tenantId);
-    if (targetTenant) {
-      setEnquiries(targetTenant.enquiries);
-      setBookings(targetTenant.bookings);
-      setCateringItems(targetTenant.cateringItems);
-      setVenueSpaces(targetTenant.venueSpaces);
-      setVenueSettings(targetTenant.settings);
-      setTeamMembers(targetTenant.teamMembers);
-    }
+    if (name) localStorage.setItem('tenantName', name);
 
     if (role === 'sales_agent') {
       setActiveTab('bookings');
@@ -117,83 +128,68 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await logoutApi();
     setUserRole(null);
     localStorage.removeItem('userRole');
+    localStorage.removeItem('activeTenantId');
+    localStorage.removeItem('tenantName');
+    localStorage.removeItem('authToken');
+
+    // Reset to defaults
+    setEnquiries(initialEnquiries);
+    setBookings(initialBookings);
+    setCateringItems(initialCateringItems);
+    setVenueSpaces(initialVenueSpaces);
+    setTeamMembers(initialTeamMembers);
+    setVenueSettings(initialVenueSettings);
   };
-
-  // Sync sub-states when the active tenant id changes
-  useEffect(() => {
-    const tenant = tenants.find(t => t.id === activeTenantId);
-    if (tenant) {
-      setEnquiries(tenant.enquiries);
-      setBookings(tenant.bookings);
-      setCateringItems(tenant.cateringItems);
-      setVenueSpaces(tenant.venueSpaces);
-      setVenueSettings(tenant.settings);
-      setTeamMembers(tenant.teamMembers);
-    }
-  }, [activeTenantId]);
-
-  // Synchronize changes to current active tenant list and serialize
-  useEffect(() => {
-    setTenants(prev => prev.map(t => {
-      if (t.id === activeTenantId) {
-        return {
-          ...t,
-          enquiries,
-          bookings,
-          venueSpaces,
-          cateringItems,
-          settings: venueSettings,
-          teamMembers
-        };
-      }
-      return t;
-    }));
-  }, [enquiries, bookings, venueSpaces, cateringItems, venueSettings, teamMembers, activeTenantId]);
-
-  useEffect(() => {
-    localStorage.setItem('tenants', JSON.stringify(tenants));
-  }, [tenants]);
-
-  useEffect(() => {
-    localStorage.setItem('activeTenantId', activeTenantId);
-  }, [activeTenantId]);
 
   // Active Admin Details Lookup
   const activeAdmin = teamMembers.find(m => m.id === activeAdminId) || teamMembers[0] || initialTeamMembers[0];
 
-  // Save changes to local storage
-  useEffect(() => {
-    localStorage.setItem('activeTab', activeTab);
-  }, [activeTab]);
+  // Save UI preferences to localStorage
+  useEffect(() => { localStorage.setItem('activeTab', activeTab); }, [activeTab]);
+  useEffect(() => { localStorage.setItem('activeAdminId', activeAdminId); }, [activeAdminId]);
 
-  useEffect(() => {
-    localStorage.setItem('activeAdminId', activeAdminId);
-  }, [activeAdminId]);
+  // ─── Data Handlers (with API sync) ──────────────────────────────────────────
 
-  // Handlers
-  const handleAddEnquiry = (enq: Enquiry) => {
+  const handleAddEnquiry = async (enq: Enquiry) => {
+    // Optimistic update
     setEnquiries(prev => [enq, ...prev]);
-    // Set selected for high visibility
     setSelectedEnquiry(enq);
     setActiveTab('enquiries');
+    // Sync to backend
+    try {
+      await enquiriesApi.createEnquiry(enq);
+    } catch (error) {
+      console.error('Failed to save enquiry to server:', error);
+    }
   };
 
-  const handleUpdateEnquiry = (updated: Enquiry) => {
+  const handleUpdateEnquiry = async (updated: Enquiry) => {
     setEnquiries(prev => prev.map(e => e.id === updated.id ? updated : e));
+    try {
+      await enquiriesApi.updateEnquiry(updated);
+    } catch (error) {
+      console.error('Failed to update enquiry on server:', error);
+    }
   };
 
-  const handleDeleteEnquiry = (id: string) => {
+  const handleDeleteEnquiry = async (id: string) => {
     setEnquiries(prev => prev.filter(e => e.id !== id));
+    try {
+      await enquiriesApi.deleteEnquiry(id);
+    } catch (error) {
+      console.error('Failed to delete enquiry on server:', error);
+    }
   };
 
-  const handleAddBooking = (book: Booking) => {
+  const handleAddBooking = async (book: Booking) => {
     setBookings(prev => [book, ...prev]);
     setActiveTab('bookings');
 
-    // If converted from a prefilled lead, update the lead status to complete/negotiating
+    // If converted from a prefilled lead, update the lead status
     if (prefillEnquiry) {
       const updatedLead: Enquiry = {
         ...prefillEnquiry,
@@ -202,10 +198,7 @@ export default function App() {
           ...prefillEnquiry.notes,
           {
             time: new Date().toLocaleString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              hour: 'numeric',
-              minute: '2-digit'
+              month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
             }),
             text: `Converted to Active booking Contract ID: ${book.id}`
           }
@@ -214,34 +207,84 @@ export default function App() {
       handleUpdateEnquiry(updatedLead);
       setPrefillEnquiry(null);
     }
+
+    try {
+      await bookingsApi.createBooking(book);
+    } catch (error) {
+      console.error('Failed to save booking to server:', error);
+    }
   };
 
-  const handleUpdateBooking = (updated: Booking) => {
+  const handleUpdateBooking = async (updated: Booking) => {
     setBookings(prev => prev.map(b => b.id === updated.id ? updated : b));
+    try {
+      await bookingsApi.updateBooking(updated);
+    } catch (error) {
+      console.error('Failed to update booking on server:', error);
+    }
   };
 
-  const handleDeleteBooking = (id: string) => {
+  const handleDeleteBooking = async (id: string) => {
     setBookings(prev => prev.filter(b => b.id !== id));
+    try {
+      await bookingsApi.deleteBooking(id);
+    } catch (error) {
+      console.error('Failed to delete booking on server:', error);
+    }
   };
 
-  const handleAddCateringItem = (item: CateringItem) => {
+  const handleAddCateringItem = async (item: CateringItem) => {
     setCateringItems(prev => [item, ...prev]);
+    try {
+      await menuApi.createMenuItem(item);
+    } catch (error) {
+      console.error('Failed to save menu item to server:', error);
+    }
   };
 
-  const handleUpdateCateringItem = (updated: CateringItem) => {
+  const handleUpdateCateringItem = async (updated: CateringItem) => {
     setCateringItems(prev => prev.map(item => item.id === updated.id ? updated : item));
+    try {
+      await menuApi.updateMenuItem(updated);
+    } catch (error) {
+      console.error('Failed to update menu item on server:', error);
+    }
   };
 
-  const handleDeleteCateringItem = (id: string) => {
+  const handleDeleteCateringItem = async (id: string) => {
     setCateringItems(prev => prev.filter(item => item.id !== id));
+    try {
+      await menuApi.deleteMenuItem(id);
+    } catch (error) {
+      console.error('Failed to delete menu item on server:', error);
+    }
   };
 
-  const handleAddVenueSpace = (space: VenueSpace) => {
+  const handleAddVenueSpace = async (space: VenueSpace) => {
     setVenueSpaces(prev => [...prev, space]);
+    try {
+      await venuesApi.createVenueSpace(space);
+    } catch (error) {
+      console.error('Failed to save venue space to server:', error);
+    }
   };
 
-  const handleDeleteVenueSpace = (id: string) => {
+  const handleDeleteVenueSpace = async (id: string) => {
     setVenueSpaces(prev => prev.filter(s => s.id !== id));
+    try {
+      await venuesApi.deleteVenueSpace(id);
+    } catch (error) {
+      console.error('Failed to delete venue space on server:', error);
+    }
+  };
+
+  const handleUpdateSettings = async (newSettings: VenueSettings) => {
+    setVenueSettings(newSettings);
+    try {
+      await settingsApi.updateSettings(newSettings);
+    } catch (error) {
+      console.error('Failed to update settings on server:', error);
+    }
   };
 
   // Convert callback triggering Prefill
@@ -260,6 +303,17 @@ export default function App() {
   };
 
   const renderActiveScreen = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center space-y-3">
+            <div className="w-10 h-10 border-4 border-[#00288e]/20 border-t-[#00288e] rounded-full animate-spin mx-auto"></div>
+            <p className="text-[#444653] text-sm font-semibold">Loading data from server...</p>
+          </div>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case 'dashboard':
         return (
@@ -338,7 +392,7 @@ export default function App() {
         return (
           <SettingsView 
             venueSettings={venueSettings}
-            onUpdateSettings={setVenueSettings}
+            onUpdateSettings={handleUpdateSettings}
             teamMembers={teamMembers}
             onSelectActiveAdmin={handleSelectActiveAdmin}
             activeAdminId={activeAdminId}
@@ -427,7 +481,7 @@ export default function App() {
               </nav>
             </div>
             <div className="text-[10px] text-[#444653] font-bold uppercase tracking-widest text-center py-2 bg-[#f4f2fc] rounded-lg">
-              v1.5 Enterprise Suite
+              v1.0.0 Enterprise Suite
             </div>
           </div>
         </div>
