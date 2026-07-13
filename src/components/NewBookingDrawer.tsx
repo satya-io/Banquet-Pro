@@ -369,7 +369,7 @@ export default function NewBookingDrawer({
                     {language === 'hi' ? `आवंटन #${idx + 1}` : `Allocation #${idx + 1}`}
                   </p>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[#444653] block text-[10px] font-bold">{language === 'hi' ? 'तारीख *' : 'Date *'}</label>
                       <input
@@ -401,7 +401,7 @@ export default function NewBookingDrawer({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 bg-[#f4f2fc]/50 p-2 rounded-lg border border-[#eeedf7]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[#f4f2fc]/50 p-2 rounded-lg border border-[#eeedf7]">
                     <div className="space-y-1">
                       <label className="text-[#444653] block text-[9px] font-bold">{language === 'hi' ? 'समय स्लॉट' : 'Time Slot'}</label>
                       <div className="flex bg-white p-0.5 rounded-lg border border-[#e3e1eb] w-full">
@@ -523,7 +523,7 @@ export default function NewBookingDrawer({
               <div className="space-y-3 bg-[#f4f2fc]/40 p-4 rounded-xl border border-[#eeedf7]">
                 <p className="text-[10px] uppercase font-bold tracking-wider text-[#00288e]">Financial Invoice Ledger</p>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <label className="text-[#444653] block">Base Quote (INR) *</label>
                     <input

@@ -187,7 +187,8 @@ export default function BookingsView({
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         {/* Bookings List Table */}
         <div className={`bg-white rounded-2xl shadow-sm border border-[#e3e1eb] overflow-hidden ${selectedBooking ? 'xl:col-span-2' : 'xl:col-span-3'}`}>
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#f4f2fc] text-[#1a1b22] font-sans font-bold text-xs uppercase tracking-wider border-b border-[#e3e1eb]">
@@ -301,6 +302,91 @@ export default function BookingsView({
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card List View */}
+          <div className="block md:hidden divide-y divide-[#e3e1eb]">
+            {filteredBookings.length === 0 ? (
+              <div className="text-center py-12 text-[#444653]">
+                <CalendarCheck className="w-10 h-10 mx-auto text-[#444653]/40 mb-3" />
+                <p className="font-bold">{t.noBookingsFound}</p>
+                <p className="text-xs text-[#444653]/70 mt-1">{t.noBookingsSub}</p>
+              </div>
+            ) : (
+              filteredBookings.map((book) => {
+                const isSelected = selectedBooking?.id === book.id;
+                const finalVal = book.finalAmount || book.totalAmount;
+                return (
+                  <div 
+                    key={book.id}
+                    onClick={() => setSelectedBooking(book)}
+                    className={`p-4 space-y-3 cursor-pointer hover:bg-[#f4f2fc]/30 transition-all duration-150 ${isSelected ? 'bg-[#f4f2fc]/60 border-l-4 border-[#00288e]' : ''}`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="font-mono text-xs font-bold text-[#00288e]">{book.id}</span>
+                        <p className="font-bold text-sm text-[#1a1b22] mt-0.5">{book.customerName}</p>
+                      </div>
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                        book.paymentStatus === 'Fully Paid'
+                          ? 'bg-[#6cf8bb]/30 text-[#00714d]'
+                          : book.paymentStatus === 'Partially Paid'
+                          ? 'bg-[#ffddb8] text-[#6b4200]'
+                          : 'bg-[#ffdad6] text-[#ba1a1a]'
+                      }`}>
+                        {book.paymentStatus}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-[#f4f2fc]/30 p-2.5 rounded-lg border border-[#eeedf7]">
+                      <div>
+                        <span className="text-[10px] text-[#444653] uppercase font-semibold block">Venue & Type</span>
+                        <span className="font-bold text-[#1a1b22]">{book.venue} ({book.eventType})</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[#444653] uppercase font-semibold block">Event Date</span>
+                        <span className="font-bold text-[#1a1b22]">{book.eventDate}</span>
+                      </div>
+                      {role !== 'sales_agent' && (
+                        <div className="col-span-2">
+                          <span className="text-[10px] text-[#444653] uppercase font-semibold block">Balance Due</span>
+                          <span className="font-bold text-[#ba1a1a]">₹{book.pendingBalance.toLocaleString('en-IN')} <span className="text-[#444653] font-normal text-[10px]">of ₹{finalVal.toLocaleString('en-IN')}</span></span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-[#e3e1eb]/60" onClick={(e) => e.stopPropagation()}>
+                      <button 
+                        onClick={() => setSelectedBooking(book)}
+                        className="bg-[#f4f2fc] text-[#00288e] px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                        <span>Billing Hub</span>
+                      </button>
+                      {role !== 'sales_agent' && (
+                        <button 
+                          onClick={() => handleDownloadInvoice(book)}
+                          className="p-2 bg-[#f4f2fc] text-[#00288e] rounded-lg hover:bg-[#eeedf7] transition-all flex items-center justify-center cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => {
+                          if (confirm(`Delete contract ${book.id} for ${book.customerName}?`)) {
+                            onDeleteBooking(book.id);
+                            if (selectedBooking?.id === book.id) setSelectedBooking(null);
+                          }
+                        }}
+                        className="p-2 bg-[#ffdad6] text-[#ba1a1a] rounded-lg transition-all cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 

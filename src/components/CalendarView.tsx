@@ -238,10 +238,10 @@ export default function CalendarView({
               const isSelected = selectedDateStr === dateStr;
 
               return (
-                <div
+                 <div
                   key={index}
                   onClick={() => handleDayClick(day)}
-                  className={`min-h-[90px] border rounded-xl p-2 flex flex-col justify-between transition-all cursor-pointer relative ${
+                  className={`min-h-[50px] sm:min-h-[90px] border rounded-xl p-1 sm:p-2 flex flex-col justify-between transition-all cursor-pointer relative ${
                     !day 
                       ? 'bg-[#f4f2fc]/10 border-transparent cursor-default pointer-events-none' 
                       : isSelected
@@ -257,7 +257,7 @@ export default function CalendarView({
                   </span>
 
                   {/* Day Events Indicator dots & list previews */}
-                  <div className="space-y-1 mt-1.5 overflow-hidden">
+                  <div className="hidden sm:block space-y-1 mt-1.5 overflow-hidden">
                     {dayEvents.slice(0, 2).map((ev) => (
                       <div 
                         key={ev.id}
@@ -275,6 +275,21 @@ export default function CalendarView({
                       <div className="text-[8px] font-bold text-[#444653] text-center">
                         +{dayEvents.length - 2} more
                       </div>
+                    )}
+                  </div>
+
+                  {/* Mobile Dots Indicator */}
+                  <div className="flex sm:hidden justify-center gap-0.5 mt-1">
+                    {dayEvents.slice(0, 3).map((ev) => (
+                      <span 
+                        key={ev.id}
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          ev.type === 'Booking' ? 'bg-[#10B981]' : 'bg-[#00288e]'
+                        }`}
+                      />
+                    ))}
+                    {dayEvents.length > 3 && (
+                      <span className="text-[8px] font-bold text-[#444653] -mt-1">+</span>
                     )}
                   </div>
                 </div>

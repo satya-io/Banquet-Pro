@@ -209,7 +209,8 @@ export default function EnquiriesView({
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         {/* Enquiries Table/List Column */}
         <div className={`bg-white rounded-2xl shadow-sm border border-[#e3e1eb] overflow-hidden xl:col-span-2 ${selectedEnquiry ? 'xl:col-span-2' : 'xl:col-span-3'}`}>
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#f4f2fc] text-[#1a1b22] font-sans font-bold text-xs uppercase tracking-wider border-b border-[#e3e1eb]">
@@ -355,6 +356,94 @@ export default function EnquiriesView({
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Card List View */}
+          <div className="block md:hidden divide-y divide-[#e3e1eb]">
+            {filteredEnquiries.length === 0 ? (
+              <div className="text-center py-12 text-[#444653]">
+                <Inbox className="w-10 h-10 mx-auto text-[#444653]/40 mb-3" />
+                <p className="font-bold">No enquiries found</p>
+                <p className="text-xs text-[#444653]/70 mt-1">Try adjusting your filters or search term</p>
+              </div>
+            ) : (
+              filteredEnquiries.map((enq) => {
+                const isSelected = selectedEnquiry?.id === enq.id;
+                return (
+                  <div 
+                    key={enq.id}
+                    onClick={() => onSelectEnquiry(enq)}
+                    className={`p-4 space-y-3 cursor-pointer hover:bg-[#f4f2fc]/30 transition-all duration-150 ${isSelected ? 'bg-[#f4f2fc]/60 border-l-4 border-[#00288e]' : ''}`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-[#dde1ff] text-[#00288e] flex items-center justify-center font-bold text-xs">
+                          {enq.customerName.split(' ').map(n => n[0]).join('')}
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-[#1a1b22]">{enq.customerName}</p>
+                          <span className="text-[10px] text-[#444653] font-semibold">{enq.source}</span>
+                        </div>
+                      </div>
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                        enq.status === 'New' 
+                          ? 'bg-[#dde1ff] text-[#00288e]' 
+                          : enq.status === 'Contacted'
+                          ? 'bg-[#ffddb8] text-[#6b4200]'
+                          : enq.status === 'Negotiating'
+                          ? 'bg-amber-100 text-amber-800'
+                          : enq.status === 'Confirmed'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-rose-100 text-rose-800'
+                      }`}>
+                        {enq.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-[#f4f2fc]/30 p-2.5 rounded-lg border border-[#eeedf7]">
+                      <div>
+                        <span className="text-[10px] text-[#444653] uppercase font-semibold block">Date</span>
+                        <span className="font-bold text-[#1a1b22]">{enq.eventDate}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[#444653] uppercase font-semibold block">Guests / Venue</span>
+                        <span className="font-bold text-[#1a1b22]">{enq.pax} Pax ({enq.venuePref})</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-[10px] text-[#444653] uppercase font-semibold block">Est. Budget</span>
+                        <span className="font-bold text-[#00288e]">₹{enq.budget.toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-[#e3e1eb]/60" onClick={(e) => e.stopPropagation()}>
+                      <button 
+                        onClick={() => onSelectEnquiry(enq)}
+                        className="bg-[#f4f2fc] text-[#1a1b22] px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                        <span>Open Details</span>
+                      </button>
+                      <a 
+                        href={`https://wa.me/${enq.phone.replace(/[^0-9]/g, '')}?text=${getWhatsAppMessageText(enq)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-2 bg-[#25D366] text-white rounded-lg hover:opacity-95 transition-all flex items-center justify-center cursor-pointer"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      </a>
+                      <button 
+                        onClick={() => {
+                          setDeleteConfirmEnquiry(enq);
+                        }}
+                        className="p-2 bg-[#ffdad6] text-[#ba1a1a] rounded-lg transition-all cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
 
         {/* Dynamic Client Detail Sidebar Panel (Priceless UX) */}
@@ -392,7 +481,7 @@ export default function EnquiriesView({
               {/* Status workflow dropdown controller */}
               <div className="space-y-1.5">
                 <label className="text-[10px] text-[#444653] uppercase tracking-wider font-bold">Sales Lead Stage</label>
-                <div className="grid grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                   {(['New', 'Contacted', 'Negotiating', 'Confirmed', 'Lost'] as const).map((st) => (
                     <button
                       key={st}
