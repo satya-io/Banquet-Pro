@@ -19,6 +19,13 @@ export interface IBooking extends Document {
   eventType: string;
   timeSlot?: 'Morning' | 'Evening';
   startTime?: string;
+  referrerName?: string;
+  allocations?: {
+    venue: string;
+    eventDate: string;
+    timeSlot: 'Morning' | 'Evening';
+    startTime?: string;
+  }[];
 }
 
 const BookingSchema = new Schema<IBooking>({
@@ -40,6 +47,13 @@ const BookingSchema = new Schema<IBooking>({
   eventType: String,
   timeSlot: { type: String, enum: ['Morning', 'Evening'] },
   startTime: String,
+  referrerName: String,
+  allocations: [{
+    venue: String,
+    eventDate: String,
+    timeSlot: { type: String, enum: ['Morning', 'Evening'] },
+    startTime: String,
+  }],
 }, { timestamps: true });
 
 BookingSchema.index({ tenantId: 1, id: 1 }, { unique: true });

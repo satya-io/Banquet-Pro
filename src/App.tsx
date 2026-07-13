@@ -15,6 +15,7 @@ import SettingsView from './components/SettingsView';
 import NewEnquiryModal from './components/NewEnquiryModal';
 import NewBookingDrawer from './components/NewBookingDrawer';
 import LoginScreen from './components/LoginScreen';
+import AppAdminPortal from './components/AppAdminPortal';
 import { LayoutDashboard, Inbox, CalendarCheck, Calendar as CalendarIcon, ChefHat, Settings } from 'lucide-react';
 import { Language, translations } from './translations';
 
@@ -121,11 +122,7 @@ export default function App() {
     localStorage.setItem('activeTenantId', tenantId);
     if (name) localStorage.setItem('tenantName', name);
 
-    if (role === 'sales_agent') {
-      setActiveTab('bookings');
-    } else {
-      setActiveTab('dashboard');
-    }
+    setActiveTab('dashboard');
   };
 
   const handleLogout = async () => {
@@ -143,7 +140,12 @@ export default function App() {
     setVenueSpaces(initialVenueSpaces);
     setTeamMembers(initialTeamMembers);
     setVenueSettings(initialVenueSettings);
+
+    if (window.location.pathname === '/appadmin') {
+      window.location.href = '/';
+    }
   };
+
 
   // Active Admin Details Lookup
   const activeAdmin = teamMembers.find(m => m.id === activeAdminId) || teamMembers[0] || initialTeamMembers[0];
@@ -307,6 +309,33 @@ export default function App() {
     setActiveAdminId(member.id);
   };
 
+  const handleAddTeamMember = async (member: TeamMember) => {
+    setTeamMembers(prev => [...prev, member]);
+    try {
+      await settingsApi.addTeamMember(member);
+    } catch (error) {
+      console.error('Failed to add team member on server:', error);
+    }
+  };
+
+  const handleUpdateTeamMember = async (id: string, updated: Partial<TeamMember>) => {
+    setTeamMembers(prev => prev.map(m => m.id === id ? { ...m, ...updated } as TeamMember : m));
+    try {
+      await settingsApi.updateTeamMember(id, updated);
+    } catch (error) {
+      console.error('Failed to update team member on server:', error);
+    }
+  };
+
+  const handleDeleteTeamMember = async (id: string) => {
+    setTeamMembers(prev => prev.filter(m => m.id !== id));
+    try {
+      await settingsApi.deleteTeamMember(id);
+    } catch (error) {
+      console.error('Failed to delete team member on server:', error);
+    }
+  };
+
   const handleToggleProfile = () => {
     setActiveTab('settings');
   };
@@ -325,6 +354,21 @@ export default function App() {
 
     switch (activeTab) {
       case 'dashboard':
+        if (userRole === 'sales_agent') {
+          return (
+            <CalendarView 
+              searchQuery={searchQuery}
+              bookings={bookings}
+              enquiries={enquiries}
+              onOpenNewBookingDrawer={() => {
+                setPrefillEnquiry(null);
+                setNewBookingOpen(true);
+              }}
+              role={userRole}
+              language={language}
+            />
+          );
+        }
         return (
           <DashboardView 
             searchQuery={searchQuery}
@@ -371,6 +415,7 @@ export default function App() {
             }}
             role={userRole || 'admin'}
             language={language}
+            cateringItems={cateringItems}
           />
         );
       case 'calendar':
@@ -409,6 +454,11 @@ export default function App() {
             onAddVenueSpace={handleAddVenueSpace}
             onDeleteVenueSpace={handleDeleteVenueSpace}
             onUpdateVenueSpace={handleUpdateVenueSpace}
+            onAddTeamMember={handleAddTeamMember}
+            onUpdateTeamMember={handleUpdateTeamMember}
+            onDeleteTeamMember={handleDeleteTeamMember}
+            role={userRole || 'admin'}
+            tenantId={activeTenantId || ''}
           />
         );
       default:
@@ -422,6 +472,16 @@ export default function App() {
         onLogin={handleLogin} 
         language={language} 
         onLanguageChange={handleLanguageChange} 
+      />
+    );
+  }
+
+  if (activeTenantId === 'TENANT-DEFAULT') {
+    return (
+      <AppAdminPortal 
+        onLogout={handleLogout}
+        language={language}
+        onLanguageChange={handleLanguageChange}
       />
     );
   }
@@ -511,6 +571,8 @@ export default function App() {
           onLogout={handleLogout}
           language={language}
           onLanguageChange={handleLanguageChange}
+          bookings={bookings}
+          enquiries={enquiries}
         />
 
         {/* Core application body viewport */}
@@ -523,6 +585,8 @@ export default function App() {
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#e3e1eb] p-3 flex justify-around items-center z-40 shadow-xl">
         {(userRole === 'sales_agent'
           ? [
+              { id: 'dashboard' as ActiveTab, label: translations[language].dashboard, icon: LayoutDashboard },
+              { id: 'enquiries' as ActiveTab, label: translations[language].enquiries, icon: Inbox },
               { id: 'bookings' as ActiveTab, label: translations[language].bookings, icon: CalendarCheck },
               { id: 'calendar' as ActiveTab, label: translations[language].calendar, icon: CalendarIcon }
             ]
@@ -557,6 +621,7 @@ export default function App() {
         onAddEnquiry={handleAddEnquiry}
         venueSpaces={venueSpaces.map(s => s.name)}
         cateringItems={cateringItems}
+        bookings={bookings}
       />
 
       <NewBookingDrawer 

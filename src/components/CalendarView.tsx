@@ -38,9 +38,9 @@ export default function CalendarView({
   role = 'admin',
   language
 }: CalendarViewProps) {
-  // We can default the calendar date to October 2024
-  const [currentYear, setCurrentYear] = useState(2024);
-  const [currentMonth, setCurrentMonth] = useState(9); // 0-indexed, so 9 is October
+  const today = new Date();
+  const [currentYear, setCurrentYear] = useState(today.getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(today.getMonth()); // 0-indexed
   const [selectedDayEvents, setSelectedDayEvents] = useState<CalendarEvent[]>([]);
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
 
@@ -49,34 +49,62 @@ export default function CalendarView({
   // Month names list
   const monthNames = t.months;
 
-  // Map enquiries and bookings to a unified CalendarEvent model
-  const allEvents: CalendarEvent[] = [
-    ...bookings.map(b => ({
-      id: b.id,
-      title: b.eventType,
-      customerName: b.customerName,
-      date: b.eventDate,
-      venue: b.venue,
-      type: 'Booking' as const,
-      status: b.status,
-      paymentStatus: b.paymentStatus,
-      pax: 150, // default or custom
-      amount: b.finalAmount,
-      timeSlot: b.timeSlot,
-      startTime: b.startTime
-    })),
-    ...(role !== 'sales_agent' ? enquiries.map(e => ({
-      id: e.id,
-      title: `${e.venuePref} Lead`,
-      customerName: e.customerName,
-      date: e.eventDate,
-      venue: e.venuePref,
-      type: 'Enquiry' as const,
-      status: e.status,
-      pax: e.pax,
-      amount: e.budget
-    })) : [])
-  ];
+  const allEvents: CalendarEvent[] = [];
+
+  bookings.forEach(b => {
+    if (b.allocations && b.allocations.length > 0) {
+      b.allocations.forEach((alloc, idx) => {
+        allEvents.push({
+          id: `${b.id}-alloc-${idx}`,
+          title: b.eventType,
+          customerName: b.customerName,
+          date: alloc.eventDate,
+          venue: alloc.venue,
+          type: 'Booking' as const,
+          status: b.status,
+          paymentStatus: b.paymentStatus,
+          pax: b.pax || 150,
+          amount: b.finalAmount,
+          timeSlot: alloc.timeSlot,
+          startTime: alloc.startTime
+        });
+      });
+    } else {
+      allEvents.push({
+        id: b.id,
+        title: b.eventType,
+        customerName: b.customerName,
+        date: b.eventDate,
+        venue: b.venue,
+        type: 'Booking' as const,
+        status: b.status,
+        paymentStatus: b.paymentStatus,
+        pax: b.pax || 150,
+        amount: b.finalAmount,
+        timeSlot: b.timeSlot,
+        startTime: b.startTime
+      });
+    }
+  });
+
+  if (role !== 'sales_agent') {
+    enquiries.forEach(e => {
+      allEvents.push({
+        id: e.id,
+        title: `${e.venuePref} Lead`,
+        customerName: e.customerName,
+        date: e.eventDate,
+        venue: e.venuePref,
+        type: 'Enquiry' as const,
+        status: e.status,
+        pax: e.pax,
+        amount: e.budget,
+        timeSlot: e.timeSlot,
+        startTime: e.startTime
+      });
+    });
+  }
+
 
   // Helper to change months
   const handlePrevMonth = () => {
@@ -240,7 +268,7 @@ export default function CalendarView({
                         }`}
                         title={`${ev.customerName} - ${ev.title}`}
                       >
-                        {ev.customerName.split(' ')[0]}: {ev.venue.split(' ')[0]}
+                        {(ev.customerName || 'Customer').split(' ')[0]}: {(ev.venue || 'Venue').split(' ')[0]}
                       </div>
                     ))}
                     {dayEvents.length > 2 && (

@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { 
   CalendarCheck, Plus, Search, Filter, Phone, Calendar, 
   MapPin, CheckCircle2, AlertTriangle, HelpCircle, X, ChevronRight, 
-  Receipt, Trash2, Edit2, Sparkles, Coins, IndianRupee, Download, ArrowRight
+  Receipt, Trash2, Edit2, Sparkles, Coins, IndianRupee, Download, ArrowRight, MessageSquare
 } from 'lucide-react';
-import { Booking } from '../types';
+import { Booking, CateringItem } from '../types';
 import { Language, translations } from '../translations';
+import { printInvoice, printAgreement } from '../utils/print';
 
 interface BookingsViewProps {
   searchQuery: string;
@@ -16,6 +17,7 @@ interface BookingsViewProps {
   onOpenNewBookingDrawer: () => void;
   role?: 'admin' | 'sales_agent';
   language: Language;
+  cateringItems: CateringItem[];
 }
 
 type PaymentFilterType = 'All' | 'Fully Paid' | 'Partially Paid' | 'Overdue';
@@ -28,11 +30,13 @@ export default function BookingsView({
   onDeleteBooking,
   onOpenNewBookingDrawer,
   role = 'admin',
-  language
+  language,
+  cateringItems
 }: BookingsViewProps) {
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilterType>('All');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [paymentAmountInput, setPaymentAmountInput] = useState('');
+  const [showWhatsAppAssistant, setShowWhatsAppAssistant] = useState<{ booking: Booking; type: 'Invoice' | 'Contract' } | null>(null);
 
   const t = translations[language];
 
@@ -93,7 +97,45 @@ export default function BookingsView({
   };
 
   const handleDownloadInvoice = (book: Booking) => {
-    alert(language === 'en' ? `Downloading Invoice Draft for ${book.customerName} (ID: ${book.id}) to PDF...` : `ग्राहक ${book.customerName} (आईडी: ${book.id}) का चालान ड्राफ्ट डाउनलोड हो रहा है...`);
+    setShowWhatsAppAssistant({ booking: book, type: 'Invoice' });
+  };
+
+  const getWhatsAppBookingText = (book: Booking, type: 'Invoice' | 'Contract') => {
+    let msg = `*Dear ${book.customerName},*\n\n`;
+    msg += `We are pleased to share your Event *${type === 'Invoice' ? 'Invoice' : 'Agreement Contract'}* details for *Grand Royal Banquet*:\n\n`;
+    msg += `📑 *Booking ID:* ${book.id}\n`;
+    msg += `📅 *Event Date:* ${book.eventDate}\n`;
+    msg += `📍 *Allocated Venue:* ${book.venue}\n`;
+    msg += `🎈 *Event Type:* ${book.eventType}\n`;
+    msg += `👥 *Capacity:* ${book.pax} Pax\n`;
+    
+    if (book.timeSlot) {
+      msg += `⏰ *Slot:* ${book.timeSlot === 'Morning' ? 'Day Slot (10 AM - 4 PM)' : 'Night Slot (7 PM - 1 AM)'}\n`;
+    }
+    if (book.startTime) {
+      msg += `⏰ *Start Time:* ${book.startTime}\n`;
+    }
+
+    msg += `\n*Financial Schedule:*\n`;
+    msg += `- Total Amount: ₹${book.totalAmount.toLocaleString('en-IN')}\n`;
+    if (book.discountPercent > 0) {
+      msg += `- Discount (${book.discountPercent}%): -₹${book.discountAmount.toLocaleString('en-IN')}\n`;
+    }
+    msg += `- Final Contract Price: ₹${book.finalAmount.toLocaleString('en-IN')}\n`;
+    msg += `- Amount Deposited: ₹${book.amountReceived.toLocaleString('en-IN')}\n`;
+    msg += `- Outstanding Balance: ₹${book.pendingBalance.toLocaleString('en-IN')}\n`;
+
+    if (book.menuSelection && book.menuSelection.length > 0) {
+      msg += `\n*Catering Inclusions Selected:*\n`;
+      book.menuSelection.forEach(item => {
+        msg += `✓ ${item}\n`;
+      });
+    }
+
+    msg += `\nWe have generated the PDF copy of your ${type === 'Invoice' ? 'invoice' : 'contract agreement'}. We are opening the chat to send this to you.\n\n`;
+    msg += `Warm regards,\n*Grand Royal Banquet Team*`;
+
+    return encodeURIComponent(msg);
   };
 
   return (
@@ -281,36 +323,62 @@ export default function BookingsView({
 
             {/* Details Card */}
             <div className="space-y-4">
-              <div className="bg-[#f4f2fc]/50 p-4 rounded-xl border border-[#eeedf7] space-y-1">
+              <div className="bg-[#f4f2fc]/50 p-4 rounded-xl border border-[#eeedf7] space-y-1 relative">
                 <p className="text-[10px] text-[#444653] uppercase font-bold tracking-wider">Customer Name</p>
                 <h4 className="font-sans font-extrabold text-[#1a1b22] text-sm">{selectedBooking.customerName}</h4>
-                <p className="text-xs text-[#444653] flex items-center gap-1.5 mt-1.5">
-                  <Phone className="w-3.5 h-3.5 text-[#00288e]" />
-                  <span>{selectedBooking.phone}</span>
-                </p>
+                <div className="flex justify-between items-center mt-1.5">
+                  <p className="text-xs text-[#444653] flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-[#00288e]" />
+                    <span>{selectedBooking.phone}</span>
+                  </p>
+                  {selectedBooking.referrerName && (
+                    <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-md font-bold">
+                      Referred by: {selectedBooking.referrerName}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Event details */}
-              <div className="grid grid-cols-2 gap-3 text-xs bg-[#f4f2fc]/20 p-3.5 rounded-xl border border-[#eeedf7]">
-                <div>
-                  <span className="text-[#444653] font-semibold block">Event Type</span>
-                  <span className="font-bold text-[#1a1b22]">{selectedBooking.eventType}</span>
+              {selectedBooking.allocations && selectedBooking.allocations.length > 0 ? (
+                <div className="space-y-2 bg-[#f4f2fc]/20 p-3.5 rounded-xl border border-[#eeedf7]">
+                  <span className="text-[10px] text-[#444653] uppercase font-bold tracking-wider block">Allocated Events & Venues</span>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                    {selectedBooking.allocations.map((alloc, idx) => (
+                      <div key={idx} className="bg-white p-2 rounded-lg border border-[#eeedf7] flex justify-between items-center text-xs font-bold">
+                        <div>
+                          <span className="text-[#00288e]">{alloc.venue}</span>
+                          <span className="text-[#444653]/60 text-[10px] ml-1">({alloc.timeSlot})</span>
+                        </div>
+                        <div className="text-[#1a1b22] text-[10px]">
+                          {alloc.eventDate} @ {alloc.startTime || '10:00'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[#444653] font-semibold block">Venue Space</span>
-                  <span className="font-bold text-[#1a1b22]">{selectedBooking.venue}</span>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 text-xs bg-[#f4f2fc]/20 p-3.5 rounded-xl border border-[#eeedf7]">
+                  <div>
+                    <span className="text-[#444653] font-semibold block">Event Type</span>
+                    <span className="font-bold text-[#1a1b22]">{selectedBooking.eventType}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#444653] font-semibold block">Venue Space</span>
+                    <span className="font-bold text-[#1a1b22]">{selectedBooking.venue}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#444653] font-semibold block">Event Date</span>
+                    <span className="font-bold text-[#1a1b22]">{selectedBooking.eventDate}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#444653] font-semibold block">Slot & Start Time</span>
+                    <span className="font-bold text-[#1a1b22]">
+                      {selectedBooking.timeSlot || 'Morning'} ({selectedBooking.startTime || '10:00'})
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[#444653] font-semibold block">Event Date</span>
-                  <span className="font-bold text-[#1a1b22]">{selectedBooking.eventDate}</span>
-                </div>
-                <div>
-                  <span className="text-[#444653] font-semibold block">Slot & Start Time</span>
-                  <span className="font-bold text-[#1a1b22]">
-                    {selectedBooking.timeSlot || 'Morning'} ({selectedBooking.startTime || '10:00'})
-                  </span>
-                </div>
-              </div>
+              )}
 
               {/* Catering Menu Items selection */}
               <div className="space-y-1.5 bg-[#f4f2fc]/30 p-3.5 rounded-xl border border-[#eeedf7]">
@@ -422,7 +490,7 @@ export default function BookingsView({
                     <span>Invoice PDF</span>
                   </button>
                   <button
-                    onClick={() => alert(`Dynamic Agreement contract file downloaded for ${selectedBooking.customerName}`)}
+                    onClick={() => setShowWhatsAppAssistant({ booking: selectedBooking, type: 'Contract' })}
                     className="bg-[#00288e] text-white py-2.5 rounded-xl text-xs font-bold hover:bg-[#1e40af] transition-all flex items-center justify-center gap-1 cursor-pointer"
                   >
                     <span>Legal Contract</span>
@@ -439,7 +507,80 @@ export default function BookingsView({
             </div>
           </div>
         )}
-      </div>
+
+      {/* WhatsApp Delivery Assistant Modal */}
+      {showWhatsAppAssistant && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl animate-scale-up">
+            <div className="flex justify-between items-center pb-2 border-b border-[#eeedf7]">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-[#25D366]/10 rounded-xl text-[#25D366]">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <h3 className="font-sans font-extrabold text-base text-[#1a1b22]">WhatsApp Delivery Assistant</h3>
+              </div>
+              <button 
+                onClick={() => setShowWhatsAppAssistant(null)}
+                className="p-1.5 hover:bg-[#f4f2fc] text-[#444653] rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-[#444653] leading-relaxed">
+                We are generating the <strong>${showWhatsAppAssistant.type} PDF</strong> for <strong>${showWhatsAppAssistant.booking.customerName}</strong>. 
+              </p>
+              
+              <div className="bg-[#f4f2fc]/60 p-3 rounded-2xl border border-[#dde1ff] space-y-2 text-[11px] text-[#444653]">
+                <p className="font-bold text-[#00288e] uppercase tracking-wider text-[9px]">How to share via WhatsApp:</p>
+                <ol className="list-decimal pl-4 space-y-1.5 font-medium">
+                  <li>Click <strong>"Generate PDF & Open Chat"</strong> below.</li>
+                  <li>The print screen will load automatically. Click <strong>"Save as PDF"</strong> to save the document.</li>
+                  <li>A new tab will open with the client's pre-filled chat details.</li>
+                  <li>Simply attach or drag-and-drop the saved PDF file into the WhatsApp chat.</li>
+                </ol>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowWhatsAppAssistant(null)}
+                className="flex-1 py-2.5 bg-white text-[#444653] font-semibold text-xs rounded-xl hover:bg-[#f4f2fc] border border-[#c4c5d5] cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const book = showWhatsAppAssistant.booking;
+                  const type = showWhatsAppAssistant.type;
+                  
+                  // 1. Generate print
+                  if (type === 'Invoice') {
+                    printInvoice(book, cateringItems);
+                  } else {
+                    printAgreement(book, cateringItems);
+                  }
+                  
+                  // 2. Open WhatsApp link with prefilled specifications
+                  const text = getWhatsAppBookingText(book, type);
+                  const phone = book.phone.replace(/[^0-9]/g, '');
+                  window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+                  
+                  // 3. Clear modal
+                  setShowWhatsAppAssistant(null);
+                }}
+                className="flex-1 py-2.5 bg-[#00288e] text-white font-semibold text-xs rounded-xl hover:bg-[#1e40af] cursor-pointer transition-colors shadow-sm"
+              >
+                Generate & Open Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  </div>
   );
 }

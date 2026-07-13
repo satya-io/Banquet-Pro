@@ -13,6 +13,8 @@ import { Booking } from './models/Booking.js';
 import { CateringItem } from './models/CateringItem.js';
 import { VenueSpace } from './models/VenueSpace.js';
 import { TeamMember } from './models/TeamMember.js';
+import { initialCateringItems } from '../src/data.js';
+
 import { Settings } from './models/Settings.js';
 import mongoose from 'mongoose';
 
@@ -37,6 +39,7 @@ async function seedDatabase() {
         ownerPassword: 'admin123',
         staffUsername: 'sales',
         staffPassword: 'sales123',
+        active: true,
       },
       { upsert: true, new: true }
     );
@@ -87,9 +90,9 @@ async function seedDatabase() {
     // 5. Seed team members
     console.log('📦 Seeding team members...');
     const team = [
-      { id: 'TEAM-001', name: 'Alex Rivera', email: 'alex.rivera@banquetpro.com', role: 'Admin', status: 'Online', lastActive: 'Just now', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC_z3jZfhBZzvyiTOCthdJZCXPUTwi0MXEuwe_qVQcw1g9PfEfzPv3fsXKKvMPJ5J4gYfq5eHQiPi4xAp1QQEacuLoibg9QdoBql0Wtv0HeJFmNJHlKrRbthP-vNZS3eKSncH6e0HiWnW6v3keIER-AAQygcSMyKDL4LCASdZWQVlCPzRTRstTTdTp2JUzCgiNWiV4DOh-eF4F1SHTx-rrRJ9XxSZ3fjB25-Ta4isBGbF2cPgJcMDJrhg' },
-      { id: 'TEAM-002', name: 'Jordan Miller', email: 'jordan@grandroyal.com', role: 'Manager', status: 'Offline', lastActive: '2h ago', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAZBAEbRTytGtp5st7h7aI-6VTJHQs20OoQ9pHGdn-8wpz-oGHYJdkAd8HIP5YiMIQYGndejiGfFYwUbAeoowO-G8k2fmVEt8FobpDkMzV3wQxTohX4mzRRPhlm0utmmC5wtc6xbNPw2b__5VBnc4k-gtcJIrZl9wb1QpFBf4QJWJxIcXMqApb4WD7KWK4FSk37GM_HSXVaDsIEgrn_q7BR1WOfm6fwO4lYZwKmkUvrekb3L3v9Gqz_rQ' },
-      { id: 'TEAM-003', name: 'Sarah Tan', email: 'sarah@grandroyal.com', role: 'Staff', status: 'Online', lastActive: '14m ago', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCc3cVsnSt9zilkyUgSKtjmj5UK5uKIRf3ILPxGoLMa74A_ObsrepXR4pOZOm8Wa9O5nbT3ER_IP4-Un3WzC3l9TvkltO2cMSwTBdDUlZFhE0aOUgozmHpQ9lBx0VJAj6-dgAvdCgqVnNxmsTT7R6SRhklo25NNgofAzmVZVkOdmeHo9kNyA1buTl3stNhrKmo1H50fGVdH6HJKJblhnfLd-IABi_lw3Q9jVZhqpE0VATf6bHENDL89RQ' },
+      { id: 'TEAM-001', name: 'Alex Rivera', email: 'alex.rivera@banquetpro.com', role: 'Admin', status: 'Online', lastActive: 'Just now', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC_z3jZfhBZzvyiTOCthdJZCXPUTwi0MXEuwe_qVQcw1g9PfEfzPv3fsXKKvMPJ5J4gYfq5eHQiPi4xAp1QQEacuLoibg9QdoBql0Wtv0HeJFmNJHlKrRbthP-vNZS3eKSncH6e0HiWnW6v3keIER-AAQygcSMyKDL4LCASdZWQVlCPzRTRstTTdTp2JUzCgiNWiV4DOh-eF4F1SHTx-rrRJ9XxSZ3fjB25-Ta4isBGbF2cPgJcMDJrhg', phone: '9999999999', password: 'admin123', active: true },
+      { id: 'TEAM-002', name: 'Jordan Miller', email: 'jordan@grandroyal.com', role: 'Manager', status: 'Offline', lastActive: '2h ago', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAZBAEbRTytGtp5st7h7aI-6VTJHQs20OoQ9pHGdn-8wpz-oGHYJdkAd8HIP5YiMIQYGndejiGfFYwUbAeoowO-G8k2fmVEt8FobpDkMzV3wQxTohX4mzRRPhlm0utmmC5wtc6xbNPw2b__5VBnc4k-gtcJIrZl9wb1QpFBf4QJWJxIcXMqApb4WD7KWK4FSk37GM_HSXVaDsIEgrn_q7BR1WOfm6fwO4lYZwKmkUvrekb3L3v9Gqz_rQ', phone: '8888888888', password: 'manager123', active: true },
+      { id: 'TEAM-003', name: 'Sarah Tan', email: 'sarah@grandroyal.com', role: 'Staff', status: 'Online', lastActive: '14m ago', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCc3cVsnSt9zilkyUgSKtjmj5UK5uKIRf3ILPxGoLMa74A_ObsrepXR4pOZOm8Wa9O5nbT3ER_IP4-Un3WzC3l9TvkltO2cMSwTBdDUlZFhE0aOUgozmHpQ9lBx0VJAj6-dgAvdCgqVnNxmsTT7R6SRhklo25NNgofAzmVZVkOdmeHo9kNyA1buTl3stNhrKmo1H50fGVdH6HJKJblhnfLd-IABi_lw3Q9jVZhqpE0VATf6bHENDL89RQ', phone: '7777777777', password: 'sales123', active: true },
     ];
     for (const m of team) {
       await TeamMember.findOneAndUpdate({ id: m.id, tenantId: TENANT_ID }, { ...m, tenantId: TENANT_ID }, { upsert: true });
@@ -114,24 +117,13 @@ async function seedDatabase() {
     );
     console.log('   ✅ Settings for "Grand Royal Banquet Hall" ready');
 
-    // 7. Seed catering items (sample subset)
+    // 7. Seed catering items
     console.log('📦 Seeding catering items...');
-    const cateringItems = [
-      { id: 'CAT-WD-01', name: 'Water Bottle 250ml', category: 'WELCOME DRINKS', description: 'Chilled packaged drinking water 250ml.', price: 0, isAvailable: true, image: '' },
-      { id: 'CAT-WD-02', name: 'Pan Shake', category: 'WELCOME DRINKS', description: 'Creamy refreshing betel-flavored sweet shake.', price: 0, isAvailable: true, isBestseller: true, image: '' },
-      { id: 'CAT-ST-01', name: 'Paneer Malai Tikka', category: 'STARTERS', description: 'Succulent tandoor-grilled cottage cheese cubes.', price: 0, isAvailable: true, isBestseller: true, image: '' },
-      { id: 'CAT-ST-02', name: 'Spring Roll', category: 'STARTERS', description: 'Crunchy golden rolls packed with vegetables.', price: 0, isAvailable: true, image: '' },
-      { id: 'CAT-CS-04', name: 'Golgappe', category: 'CHAT STALL', description: 'Puffed puris served with interactive flavored waters.', price: 0, isAvailable: true, isBestseller: true, image: '' },
-      { id: 'CAT-VMF-01', name: 'Lahori Kadai Paneer', category: 'VEGETABLE MUGHLAI FOOD LIVE', description: 'Cottage cheese cooked in Lahori wok spices.', price: 0, isAvailable: true, isBestseller: true, image: '' },
-      { id: 'CAT-DC-01', name: 'Dal Makhni', category: 'DAL COUNTER', description: 'Decadent buttery slow-cooked black lentils.', price: 0, isAvailable: true, isBestseller: true, image: '' },
-      { id: 'CAT-DD-04', name: 'Jalebi Rabri', category: 'DELIGHTFUL DESSERT', description: 'Live hot crisp jalebi paired with cold condensed milk.', price: 0, isAvailable: true, isBestseller: true, image: '' },
-      { id: 'CAT-RC-01', name: 'Navrattan Pulao', category: 'RICE COUNTER', description: 'Aromatic basmati rice cooked with vegetables and nuts.', price: 0, isAvailable: true, image: '' },
-      { id: 'CAT-IB-01', name: 'Naan - Plain, Butter, Garlic', category: 'INDIAN BREADS', description: 'Leavened clay-oven baked bread selection.', price: 0, isAvailable: true, image: '' },
-    ];
-    for (const item of cateringItems) {
+    for (const item of initialCateringItems) {
       await CateringItem.findOneAndUpdate({ id: item.id, tenantId: TENANT_ID }, { ...item, tenantId: TENANT_ID }, { upsert: true });
     }
-    console.log(`   ✅ ${cateringItems.length} catering items seeded`);
+    console.log(`   ✅ ${initialCateringItems.length} catering items seeded`);
+
 
     console.log('');
     console.log('═══════════════════════════════════════');

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { X, User, Phone, Mail, Calendar, Users, IndianRupee, MapPin, Sparkles, ChefHat, FileText, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
-import { Enquiry, CateringItem } from '../types';
+import { X, User, Phone, Mail, Calendar, Users, IndianRupee, MapPin, Sparkles, ChefHat, FileText, Copy, Check, ChevronDown, ChevronRight, AlertTriangle, Clock } from 'lucide-react';
+import { Enquiry, CateringItem, Booking } from '../types';
 
 interface NewEnquiryModalProps {
   isOpen: boolean;
@@ -8,6 +8,7 @@ interface NewEnquiryModalProps {
   onAddEnquiry: (enquiry: Enquiry) => void;
   venueSpaces: string[];
   cateringItems: CateringItem[];
+  bookings: Booking[];
 }
 
 export default function NewEnquiryModal({
@@ -15,12 +16,14 @@ export default function NewEnquiryModal({
   onClose,
   onAddEnquiry,
   venueSpaces,
-  cateringItems
+  cateringItems,
+  bookings = []
 }: NewEnquiryModalProps) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [source, setSource] = useState('Direct Website');
+  const [source, setSource] = useState('Referral');
+  const [referrerName, setReferrerName] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [pax, setPax] = useState('');
   const [budget, setBudget] = useState('');
@@ -34,6 +37,11 @@ export default function NewEnquiryModal({
   const [copiedTerms, setCopiedTerms] = useState(false);
   const [termsAcknowledged, setTermsAcknowledged] = useState(false);
   const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
+
+  // Time and Conflict States
+  const [timeSlot, setTimeSlot] = useState<'Morning' | 'Evening'>('Morning');
+  const [startTime, setStartTime] = useState('12:00');
+  const [conflictError, setConflictError] = useState('');
 
   const handleCopyTerms = () => {
     const termsText = `BANQUET PRO - TERMS & CONDITIONS\n` +
@@ -59,6 +67,30 @@ export default function NewEnquiryModal({
       setTimeout(() => setCopiedTerms(false), 2000);
     });
   };
+  // Check for conflicts in real time as values change
+  React.useEffect(() => {
+    if (!eventDate || !venuePref || !timeSlot) {
+      setConflictError('');
+      return;
+    }
+
+    const hasConflict = bookings.some(b => 
+      b.eventDate === eventDate && 
+      b.venue.toLowerCase() === venuePref.toLowerCase() && 
+      b.timeSlot === timeSlot && 
+      b.status !== 'Cancelled'
+    );
+
+    if (hasConflict) {
+      setConflictError(
+        `Booking Conflict: "${venuePref}" is already booked for the ${
+          timeSlot === 'Morning' ? 'Day' : 'Night'
+        } slot on ${eventDate}.`
+      );
+    } else {
+      setConflictError('');
+    }
+  }, [eventDate, venuePref, timeSlot, bookings]);
 
   if (!isOpen) return null;
 
@@ -129,6 +161,11 @@ export default function NewEnquiryModal({
       return;
     }
 
+    if (conflictError) {
+      alert(`Booking Conflict: Please resolve the scheduling conflict before registering this enquiry.`);
+      return;
+    }
+
     const priceVal = parseFloat(budget) || 0;
     const bookingVal = isConfirmed ? (parseFloat(bookingAmount) || 0) : 0;
     const balanceVal = Math.max(0, priceVal - bookingVal);
@@ -139,6 +176,7 @@ export default function NewEnquiryModal({
       phone,
       email: email || '',
       source,
+      referrerName: source === 'Referral' ? referrerName.trim() : '',
       eventDate,
       pax: parseInt(pax) || 100,
       budget: priceVal,
@@ -148,6 +186,8 @@ export default function NewEnquiryModal({
       bookingAmount: bookingVal,
       pendingBalance: balanceVal,
       menuSelection: menuSelection,
+      timeSlot,
+      startTime,
       notes: [
         {
           time: new Date().toLocaleString('en-US', {
@@ -159,7 +199,7 @@ export default function NewEnquiryModal({
           }),
           text: isConfirmed 
             ? `Enquiry registered directly as Confirmed event with ₹${bookingVal} booking deposit paid.`
-            : `Enquiry Registered via ${source}`
+            : `Enquiry Registered via ${source}${source === 'Referral' && referrerName ? ` (Referred by: ${referrerName})` : ''}`
         }
       ],
       timeAgo: 'Just now'
@@ -171,7 +211,8 @@ export default function NewEnquiryModal({
     setName('');
     phone && setPhone('');
     setEmail('');
-    setSource('Direct Website');
+    setSource('Referral');
+    setReferrerName('');
     setEventDate('');
     setPax('');
     setBudget('');
@@ -256,17 +297,36 @@ export default function NewEnquiryModal({
               <label className="text-[#444653] uppercase tracking-wider block text-[10px] sm:text-xs">Acquisition Lead Source</label>
               <select
                 value={source}
-                onChange={(e) => setSource(e.target.value)}
+                onChange={(e) => {
+                  setSource(e.target.value);
+                  if (e.target.value !== 'Referral') {
+                    setReferrerName('');
+                  }
+                }}
                 className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl px-3 py-2.5 sm:py-2 text-sm text-[#1a1b22] focus:outline-none focus:ring-2 focus:ring-[#00288e]/30"
               >
+                <option value="Referral">Referral</option>
                 <option value="Direct Website">Direct Website</option>
                 <option value="WeddingWire">WeddingWire</option>
                 <option value="Instagram Ad">Instagram Ad</option>
-                <option value="Referral">Referral</option>
                 <option value="WhatsApp">WhatsApp</option>
               </select>
             </div>
           </div>
+
+          {source === 'Referral' && (
+            <div className="space-y-1 animate-fade-in">
+              <label className="text-[#444653] uppercase tracking-wider block text-[10px] sm:text-xs">Referrer Name *</label>
+              <input
+                type="text"
+                required
+                value={referrerName}
+                onChange={(e) => setReferrerName(e.target.value)}
+                placeholder="Who referred this lead? E.g. Rajesh Kumar"
+                className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl px-3 py-2.5 sm:py-2 text-sm text-[#1a1b22] focus:outline-none focus:ring-2 focus:ring-[#00288e]/30 font-bold"
+              />
+            </div>
+          )}
 
           {/* Event details */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -316,22 +376,64 @@ export default function NewEnquiryModal({
             </div>
           </div>
 
-          {/* Venue preference selection */}
-          <div className="space-y-1">
-            <label className="text-[#444653] uppercase tracking-wider block text-[10px] sm:text-xs">Venue Space Preference</label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#444653]/60" />
-              <select
-                value={venuePref}
-                onChange={(e) => setVenuePref(e.target.value)}
-                className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl pl-10 pr-3 py-2.5 sm:py-2 text-sm text-[#1a1b22] focus:outline-none focus:ring-2 focus:ring-[#00288e]/30"
-              >
-                {venueSpaces.map(sp => (
-                  <option key={sp} value={sp}>{sp}</option>
-                ))}
-              </select>
+          {/* Venue preference, Slot & Start Time Selection */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="space-y-1">
+              <label className="text-[#444653] uppercase tracking-wider block text-[10px] sm:text-xs font-bold">Venue Space Preference</label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#444653]/60" />
+                <select
+                  value={venuePref}
+                  onChange={(e) => setVenuePref(e.target.value)}
+                  className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl pl-10 pr-3 py-2.5 sm:py-2 text-sm text-[#1a1b22] focus:outline-none focus:ring-2 focus:ring-[#00288e]/30 cursor-pointer"
+                >
+                  {venueSpaces.map(sp => (
+                    <option key={sp} value={sp}>{sp}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[#444653] uppercase tracking-wider block text-[10px] sm:text-xs font-bold">Function Slot</label>
+              <div className="relative">
+                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#444653]/60" />
+                <select
+                  value={timeSlot}
+                  onChange={(e) => setTimeSlot(e.target.value as 'Morning' | 'Evening')}
+                  className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl pl-10 pr-3 py-2.5 sm:py-2 text-sm text-[#1a1b22] focus:outline-none focus:ring-2 focus:ring-[#00288e]/30 cursor-pointer"
+                >
+                  <option value="Morning">Day Slot (10 AM - 4 PM)</option>
+                  <option value="Evening">Night Slot (7 PM - 1 AM)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[#444653] uppercase tracking-wider block text-[10px] sm:text-xs font-bold">Start Time</label>
+              <div className="relative">
+                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#444653]/60" style={{ transform: 'translateY(-50%) rotate(0deg)' }} />
+                <input
+                  type="time"
+                  required
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl pl-10 pr-3 py-2.5 sm:py-2 text-sm text-[#1a1b22] focus:outline-none focus:ring-2 focus:ring-[#00288e]/30"
+                />
+              </div>
             </div>
           </div>
+
+          {/* Conflict Alert Banner */}
+          {conflictError && (
+            <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2.5 text-red-800 animate-pulse">
+              <AlertTriangle className="w-5 h-5 shrink-0 text-red-600 mt-0.5" />
+              <div>
+                <p className="font-bold text-xs">Scheduling Conflict Detected!</p>
+                <p className="text-[10px] font-semibold mt-0.5 leading-relaxed">{conflictError}</p>
+              </div>
+            </div>
+          )}
 
           {/* New Interactive: Finalized Booking Toggle */}
           <div className="bg-[#f4f2fc]/50 p-3 sm:p-4 rounded-2xl border border-[#dde1ff] space-y-3">

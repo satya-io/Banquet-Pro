@@ -3,6 +3,13 @@ export interface EnquiryNote {
   text: string;
 }
 
+export interface BookingAllocation {
+  venue: string;
+  eventDate: string;
+  timeSlot: 'Morning' | 'Evening';
+  startTime?: string;
+}
+
 export interface Enquiry {
   id: string;
   customerName: string;
@@ -20,6 +27,9 @@ export interface Enquiry {
   bookingAmount?: number;
   pendingBalance?: number;
   menuSelection?: string[];
+  timeSlot?: 'Morning' | 'Evening';
+  startTime?: string;
+  referrerName?: string;
 }
 
 export interface Booking {
@@ -40,6 +50,10 @@ export interface Booking {
   eventType: string;
   timeSlot?: 'Morning' | 'Evening';
   startTime?: string;
+  pax?: number;
+  email?: string;
+  referrerName?: string;
+  allocations?: BookingAllocation[];
 }
 
 export interface CateringItem {
@@ -71,6 +85,9 @@ export interface TeamMember {
   status: 'Online' | 'Offline';
   lastActive: string;
   avatar: string;
+  phone?: string;
+  password?: string;
+  active?: boolean;
 }
 
 export interface VenueSettings {

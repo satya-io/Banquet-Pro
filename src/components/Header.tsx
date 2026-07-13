@@ -1,5 +1,6 @@
+import React, { useState } from 'react';
 import { Search, Bell, Menu, User, LogOut, Languages } from 'lucide-react';
-import { ActiveTab } from '../types';
+import { ActiveTab, Booking, Enquiry } from '../types';
 import { Language, translations } from '../translations';
 
 interface HeaderProps {
@@ -14,6 +15,8 @@ interface HeaderProps {
   onLogout: () => void;
   language: Language;
   onLanguageChange: (lang: Language) => void;
+  bookings: Booking[];
+  enquiries: Enquiry[];
 }
 
 export default function Header({
@@ -27,9 +30,63 @@ export default function Header({
   userRole,
   onLogout,
   language,
-  onLanguageChange
+  onLanguageChange,
+  bookings = [],
+  enquiries = []
 }: HeaderProps) {
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const t = translations[language];
+
+  // Generate dynamic notifications based on real data
+  const notifications: { id: string; text: string; subtext: string; type: 'info' | 'alert' | 'success' }[] = [];
+
+  // 1. Pending Payments
+  bookings.forEach(b => {
+    if (b.pendingBalance > 0 && b.status !== 'Cancelled') {
+      notifications.push({
+        id: `pay-${b.id}`,
+        text: language === 'hi' 
+          ? `भुगतान बाकी: ${b.customerName}` 
+          : `Pending Payment: ${b.customerName}`,
+        subtext: language === 'hi' 
+          ? `₹${b.pendingBalance.toLocaleString('en-IN')} का भुगतान बाकी है` 
+          : `₹${b.pendingBalance.toLocaleString('en-IN')} pending for ${b.eventType}`,
+        type: 'alert'
+      });
+    }
+  });
+
+  // 2. Referrals
+  bookings.forEach(b => {
+    if (b.referrerName) {
+      notifications.push({
+        id: `ref-${b.id}`,
+        text: language === 'hi'
+          ? `रेफरल बुक किया: ${b.customerName}`
+          : `Referral Booked: ${b.customerName}`,
+        subtext: language === 'hi'
+          ? `${b.referrerName} द्वारा संदर्भित`
+          : `Referred by ${b.referrerName}`,
+        type: 'success'
+      });
+    }
+  });
+
+  // 3. New Enquiries
+  enquiries.forEach(e => {
+    if (e.status === 'New') {
+      notifications.push({
+        id: `enq-${e.id}`,
+        text: language === 'hi'
+          ? `नई पूछताछ: ${e.customerName}`
+          : `New Enquiry: ${e.customerName}`,
+        subtext: language === 'hi'
+          ? `${e.venuePref} के लिए (बजट: ₹${e.budget.toLocaleString('en-IN')})`
+          : `Interested in ${e.venuePref} (Budget: ₹${e.budget.toLocaleString('en-IN')})`,
+        type: 'info'
+      });
+    }
+  });
 
   // Get dynamic placeholder based on current tab
   const getSearchPlaceholder = () => {
@@ -99,10 +156,50 @@ export default function Header({
           {userRole === 'admin' ? t.admin : t.sales}
         </span>
 
-        <button className="relative p-1.5 sm:p-2 text-[#444653] hover:bg-[#f4f2fc] rounded-full transition-all cursor-pointer">
-          <Bell className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#ba1a1a] rounded-full border-2 border-white"></span>
-        </button>
+        <div className="relative">
+          <button 
+            onClick={() => setNotificationsOpen(!notificationsOpen)}
+            className="relative p-1.5 sm:p-2 text-[#444653] hover:bg-[#f4f2fc] rounded-full transition-all cursor-pointer flex items-center justify-center"
+          >
+            <Bell className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+            {notifications.length > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#ba1a1a] rounded-full border border-white"></span>
+            )}
+          </button>
+          
+          {notificationsOpen && (
+            <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-[#e3e1eb] py-3 z-50 animate-fade-in max-h-96 overflow-y-auto">
+              <div className="px-4 pb-2 border-b border-[#e3e1eb] flex justify-between items-center">
+                <h4 className="font-bold text-xs text-[#1a1b22]">
+                  {language === 'hi' ? 'सूचनाएं' : 'Notifications'}
+                </h4>
+                <span className="text-[10px] bg-[#dde1ff] text-[#00288e] px-2 py-0.5 rounded-full font-bold">
+                  {notifications.length} {language === 'hi' ? 'नया' : 'New'}
+                </span>
+              </div>
+              
+              <div className="divide-y divide-[#eeedf7] mt-1.5 max-h-80 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <p className="text-center py-6 text-xs text-[#444653]/60 font-bold">
+                    {language === 'hi' ? 'कोई नई सूचना नहीं है' : 'No new notifications'}
+                  </p>
+                ) : (
+                  notifications.map((n) => (
+                    <div key={n.id} className="p-3 hover:bg-[#f4f2fc]/20 flex items-start gap-2.5 transition-colors">
+                      <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+                        n.type === 'alert' ? 'bg-red-500' : n.type === 'success' ? 'bg-green-500' : 'bg-blue-500'
+                      }`} />
+                      <div className="space-y-0.5 text-left">
+                        <p className="text-xs font-bold text-[#1a1b22]">{n.text}</p>
+                        <p className="text-[10px] text-[#444653]/80 font-semibold">{n.subtext}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
         <div className="h-6 w-px bg-[#e3e1eb] hidden sm:block"></div>
 
         {/* User Profile / Identity Button */}

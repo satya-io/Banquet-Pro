@@ -32,13 +32,15 @@ export default function NewBookingDrawer({
 }: NewBookingDrawerProps) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [eventDate, setEventDate] = useState('');
-  const [venue, setVenue] = useState(venueSpaces[0] || 'Grand Ballroom');
   const [eventType, setEventType] = useState('Wedding Reception');
-  
-  // Time Slot & Start Time
-  const [timeSlot, setTimeSlot] = useState<'Morning' | 'Evening'>('Morning');
-  const [startTime, setStartTime] = useState('10:00');
+  const [allocations, setAllocations] = useState<{
+    venue: string;
+    eventDate: string;
+    timeSlot: 'Morning' | 'Evening';
+    startTime?: string;
+  }[]>([
+    { venue: venueSpaces[0] || 'Grand Ballroom', eventDate: '', timeSlot: 'Morning', startTime: '10:00' }
+  ]);
 
   // Catering Items selection state
   const [selectedCateringItems, setSelectedCateringItems] = useState<string[]>([]);
@@ -80,43 +82,46 @@ export default function NewBookingDrawer({
     });
   };
 
-  // Auto-sync start time when slot changes
+
+  // Check for conflicts in real time as allocations change
   useEffect(() => {
-    if (timeSlot === 'Morning') {
-      setStartTime('10:00');
-    } else {
-      setStartTime('18:00');
-    }
-  }, [timeSlot]);
+    let hasConflict = false;
+    let conflictMsg = '';
 
-  // Check for conflicts in real time as values change
-  useEffect(() => {
-    if (!eventDate || !venue || !timeSlot) {
-      setConflictError('');
-      return;
-    }
+    for (const alloc of allocations) {
+      if (!alloc.eventDate || !alloc.venue || !alloc.timeSlot) continue;
 
-    const hasConflict = bookings.some(b => 
-      b.status !== 'Cancelled' && 
-      b.eventDate === eventDate && 
-      b.venue === venue && 
-      b.timeSlot === timeSlot
-    );
+      const conflict = bookings.some(b => {
+        if (b.status === 'Cancelled') return false;
 
-    if (hasConflict) {
-      if (language === 'hi') {
-        setConflictError(
-          `बुकिंग टकराव: ${venue} पहले से ही ${eventDate} को ${timeSlot === 'Morning' ? 'सुबह' : 'शाम'} के स्लॉट में बुक है।`
-        );
-      } else {
-        setConflictError(
-          `Booking Conflict: "${venue}" is already booked for the ${timeSlot} slot on ${eventDate}.`
-        );
+        // If the booking has allocations
+        if (b.allocations && b.allocations.length > 0) {
+          return b.allocations.some(ba => 
+            ba.venue.toLowerCase() === alloc.venue.toLowerCase() &&
+            ba.eventDate === alloc.eventDate &&
+            ba.timeSlot === alloc.timeSlot
+          );
+        }
+
+        // Fallback to legacy fields
+        return b.venue.toLowerCase() === alloc.venue.toLowerCase() &&
+               b.eventDate === alloc.eventDate &&
+               b.timeSlot === alloc.timeSlot;
+      });
+
+      if (conflict) {
+        hasConflict = true;
+        if (language === 'hi') {
+          conflictMsg = `बुकिंग टकराव: ${alloc.venue} पहले से ही ${alloc.eventDate} को ${alloc.timeSlot === 'Morning' ? 'सुबह' : 'शाम'} के स्लॉट में बुक है।`;
+        } else {
+          conflictMsg = `Booking Conflict: "${alloc.venue}" is already booked for the ${alloc.timeSlot} slot on ${alloc.eventDate}.`;
+        }
+        break;
       }
-    } else {
-      setConflictError('');
     }
-  }, [eventDate, venue, timeSlot, bookings, language]);
+
+    setConflictError(conflictMsg);
+  }, [allocations, bookings, language]);
 
   // Prefill hook
   useEffect(() => {
@@ -124,11 +129,17 @@ export default function NewBookingDrawer({
       if (prefillEnquiry) {
         setName(prefillEnquiry.customerName);
         setPhone(prefillEnquiry.phone);
-        setEventDate(prefillEnquiry.eventDate);
-        setVenue(prefillEnquiry.venuePref || venueSpaces[0]);
         setTotalAmount(String(prefillEnquiry.budget));
         setDiscountPercent('0');
         setAmountReceived('0');
+        setAllocations([
+          { 
+            venue: prefillEnquiry.venuePref || venueSpaces[0] || 'Grand Ballroom', 
+            eventDate: prefillEnquiry.eventDate, 
+            timeSlot: prefillEnquiry.timeSlot || 'Morning', 
+            startTime: prefillEnquiry.startTime || '10:00' 
+          }
+        ]);
         if (prefillEnquiry.menuSelection && prefillEnquiry.menuSelection.length > 0) {
           setSelectedCateringItems(prefillEnquiry.menuSelection);
         } else {
@@ -139,12 +150,12 @@ export default function NewBookingDrawer({
       } else {
         setName('');
         setPhone('');
-        // Default to a date or empty
-        setEventDate('');
-        setVenue(venueSpaces[0] || 'Grand Ballroom');
         setTotalAmount('');
         setDiscountPercent('0');
         setAmountReceived('0');
+        setAllocations([
+          { venue: venueSpaces[0] || 'Grand Ballroom', eventDate: '', timeSlot: 'Morning', startTime: '10:00' }
+        ]);
         // Default select first few catering items
         setSelectedCateringItems(cateringItems.slice(0, 4).map(item => item.name));
       }
@@ -185,7 +196,7 @@ export default function NewBookingDrawer({
     e.preventDefault();
     const isSales = role === 'sales_agent';
     
-    if (!name.trim() || !phone.trim() || !eventDate || (!isSales && !totalAmount)) {
+    if (!name.trim() || !phone.trim() || allocations.some(a => !a.eventDate) || (!isSales && !totalAmount)) {
       alert(language === 'hi' ? 'कृपया सभी आवश्यक फ़ील्ड भरें' : 'Please fill out all required fields');
       return;
     }
@@ -202,12 +213,15 @@ export default function NewBookingDrawer({
     const finalAmt = isSales ? 0 : finalAmount;
     const balance = isSales ? 0 : pendingBalance;
 
+    const firstAlloc = allocations[0];
+    const compiledVenue = allocations.map(a => a.venue).join(', ');
+
     const newBooking: Booking = {
       id: `BP-${Math.floor(10000 + Math.random() * 90000)}`,
       customerName: name,
       phone,
-      eventDate,
-      venue,
+      eventDate: firstAlloc.eventDate,
+      venue: compiledVenue,
       totalAmount: total,
       discountPercent: discPct,
       discountAmount: discAmt,
@@ -218,8 +232,9 @@ export default function NewBookingDrawer({
       paymentStatus: isSales ? 'Fully Paid' : (balance === 0 ? 'Fully Paid' : received > 0 ? 'Partially Paid' : 'Overdue'),
       menuSelection: selectedCateringItems.length > 0 ? selectedCateringItems : ['Standard Setup Menu'],
       eventType,
-      timeSlot,
-      startTime
+      timeSlot: firstAlloc.timeSlot,
+      startTime: firstAlloc.startTime,
+      allocations: allocations
     };
 
     onAddBooking(newBooking);
@@ -227,10 +242,12 @@ export default function NewBookingDrawer({
     // Reset fields
     setName('');
     phone && setPhone('');
-    setEventDate('');
     setTotalAmount('');
     setDiscountPercent('0');
     setAmountReceived('0');
+    setAllocations([
+      { venue: venueSpaces[0] || 'Grand Ballroom', eventDate: '', timeSlot: 'Morning', startTime: '10:00' }
+    ]);
     setSelectedCateringItems([]);
     onClose();
   };
@@ -323,92 +340,112 @@ export default function NewBookingDrawer({
                 </div>
               </div>
             </div>
-
-            {/* Event Specification Section */}
-            <div className="space-y-3 bg-[#f4f2fc]/40 p-4 rounded-xl border border-[#eeedf7]">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-[#00288e]">
-                {language === 'hi' ? 'इवेंट विवरण' : 'Event Details'}
-              </p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[#444653] block">{language === 'hi' ? 'इवेंट की तारीख *' : 'Event Target Date *'}</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#444653]/60" />
-                    <input
-                      type="date"
-                      required
-                      value={eventDate}
-                      onChange={(e) => setEventDate(e.target.value)}
-                      className="w-full bg-white border border-[#c4c5d5] rounded-xl pl-10 pr-3 py-2 text-sm text-[#1a1b22] focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[#444653] block">{language === 'hi' ? 'वेन्यू स्पेस आवंटन' : 'Venue Allocation Space'}</label>
-                  <select
-                    value={venue}
-                    onChange={(e) => setVenue(e.target.value)}
-                    className="w-full bg-white border border-[#c4c5d5] rounded-xl px-2.5 py-2.5 text-sm text-[#1a1b22] focus:outline-none"
-                  >
-                    {venueSpaces.map(sp => (
-                      <option key={sp} value={sp}>{sp}</option>
-                    ))}
-                  </select>
-                </div>
+            <div className="space-y-4 bg-[#f4f2fc]/40 p-4 rounded-xl border border-[#eeedf7]">
+              <div className="flex justify-between items-center">
+                <p className="text-[10px] uppercase font-bold tracking-wider text-[#00288e]">
+                  {language === 'hi' ? 'इवेंट आवंटन विवरण' : 'Event Allocation Details'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setAllocations(prev => [...prev, { venue: venueSpaces[0] || 'Grand Ballroom', eventDate: '', timeSlot: 'Morning', startTime: '10:00' }])}
+                  className="px-2 py-1 bg-[#00288e] text-white rounded-lg text-[10px] font-bold hover:bg-[#1e40af] transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                >
+                  + {language === 'hi' ? 'नया आवंटन जोड़ें' : 'Add Allocation'}
+                </button>
               </div>
 
-              {/* Time Slot & Specific Start Time Picker */}
-              <div className="grid grid-cols-2 gap-3 bg-white p-3 rounded-xl border border-[#eeedf7]">
-                <div className="space-y-1">
-                  <label className="text-[#444653] block flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-[#00288e]" />
-                    <span>{language === 'hi' ? 'समय स्लॉट' : 'Time Slot'}</span>
-                  </label>
-                  <div className="flex bg-[#f4f2fc] p-1 rounded-xl border border-[#e3e1eb] w-full">
+              {allocations.map((alloc, idx) => (
+                <div key={idx} className="bg-white p-3 rounded-xl border border-[#eeedf7] space-y-3 relative animate-fade-in shadow-xs">
+                  {allocations.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => setTimeSlot('Morning')}
-                      className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
-                        timeSlot === 'Morning' 
-                          ? 'bg-[#00288e] text-white shadow-sm' 
-                          : 'text-[#444653] hover:text-[#1a1b22]'
-                      }`}
+                      onClick={() => setAllocations(prev => prev.filter((_, i) => i !== idx))}
+                      className="absolute top-2.5 right-2.5 text-red-600 hover:text-red-800 transition-all font-bold text-xs p-1"
                     >
-                      {language === 'hi' ? 'सुबह (Morning)' : 'Morning'}
+                      {language === 'hi' ? 'हटाएं' : 'Remove'}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setTimeSlot('Evening')}
-                      className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
-                        timeSlot === 'Evening' 
-                          ? 'bg-[#00288e] text-white shadow-sm' 
-                          : 'text-[#444653] hover:text-[#1a1b22]'
-                      }`}
-                    >
-                      {language === 'hi' ? 'शाम (Evening)' : 'Evening'}
-                    </button>
+                  )}
+                  <p className="text-[10px] font-bold text-[#444653] uppercase">
+                    {language === 'hi' ? `आवंटन #${idx + 1}` : `Allocation #${idx + 1}`}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[#444653] block text-[10px] font-bold">{language === 'hi' ? 'तारीख *' : 'Date *'}</label>
+                      <input
+                        type="date"
+                        required
+                        value={alloc.eventDate}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setAllocations(prev => prev.map((a, i) => i === idx ? { ...a, eventDate: val } : a));
+                        }}
+                        className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl px-2.5 py-1.5 text-xs text-[#1a1b22] focus:outline-none font-bold"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[#444653] block text-[10px] font-bold">{language === 'hi' ? 'वेन्यू स्पेस' : 'Venue Space'}</label>
+                      <select
+                        value={alloc.venue}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setAllocations(prev => prev.map((a, i) => i === idx ? { ...a, venue: val } : a));
+                        }}
+                        className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl px-2 py-1.5 text-xs text-[#1a1b22] focus:outline-none font-bold"
+                      >
+                        {venueSpaces.map(sp => (
+                          <option key={sp} value={sp}>{sp}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 bg-[#f4f2fc]/50 p-2 rounded-lg border border-[#eeedf7]">
+                    <div className="space-y-1">
+                      <label className="text-[#444653] block text-[9px] font-bold">{language === 'hi' ? 'समय स्लॉट' : 'Time Slot'}</label>
+                      <div className="flex bg-white p-0.5 rounded-lg border border-[#e3e1eb] w-full">
+                        <button
+                          type="button"
+                          onClick={() => setAllocations(prev => prev.map((a, i) => i === idx ? { ...a, timeSlot: 'Morning', startTime: '10:00' } : a))}
+                          className={`flex-1 py-1 text-[9px] font-bold rounded-md transition-all cursor-pointer ${
+                            alloc.timeSlot === 'Morning' 
+                              ? 'bg-[#00288e] text-white shadow-sm' 
+                              : 'text-[#444653] hover:text-[#1a1b22]'
+                          }`}
+                        >
+                          {language === 'hi' ? 'सुबह' : 'Morning'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAllocations(prev => prev.map((a, i) => i === idx ? { ...a, timeSlot: 'Evening', startTime: '18:00' } : a))}
+                          className={`flex-1 py-1 text-[9px] font-bold rounded-md transition-all cursor-pointer ${
+                            alloc.timeSlot === 'Evening' 
+                              ? 'bg-[#00288e] text-white shadow-sm' 
+                              : 'text-[#444653] hover:text-[#1a1b22]'
+                          }`}
+                        >
+                          {language === 'hi' ? 'शाम' : 'Evening'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[#444653] block text-[9px] font-bold">{language === 'hi' ? 'शुरू होने का समय *' : 'Start Time *'}</label>
+                      <input
+                        type="time"
+                        required
+                        value={alloc.startTime || '10:00'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setAllocations(prev => prev.map((a, i) => i === idx ? { ...a, startTime: val } : a));
+                        }}
+                        className="w-full bg-white border border-[#c4c5d5] rounded-xl px-2 py-1 text-xs text-[#1a1b22] focus:outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
-
-                <div className="space-y-1">
-                  <label className="text-[#444653] block">{language === 'hi' ? 'इवेंट शुरू होने का समय *' : 'Event Start Time *'}</label>
-                  <input
-                    type="time"
-                    required
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full bg-white border border-[#c4c5d5] rounded-xl px-2.5 py-2 text-sm text-[#1a1b22] focus:outline-none"
-                  />
-                  <span className="text-[9px] text-[#444653]/80 italic font-semibold">
-                    {timeSlot === 'Morning' 
-                      ? (language === 'hi' ? 'सुबह के कार्यक्रम आम तौर पर सुबह 10 बजे से' : 'Morning events usually start at 10:00 AM')
-                      : (language === 'hi' ? 'शाम के कार्यक्रम आम तौर पर शाम 6 बजे से' : 'Evening events usually start at 6:00 PM')
-                    }
-                  </span>
-                </div>
-              </div>
+              ))}
 
               <div className="space-y-1">
                 <label className="text-[#444653] block">{language === 'hi' ? 'इवेंट थीम / प्रकार' : 'Event Theme Style'}</label>
@@ -425,6 +462,7 @@ export default function NewBookingDrawer({
                 </select>
               </div>
             </div>
+
 
             {/* Catering Menu Items Selection (Requested Change!) */}
             <div className="space-y-3 bg-[#f4f2fc]/40 p-4 rounded-xl border border-[#eeedf7]">

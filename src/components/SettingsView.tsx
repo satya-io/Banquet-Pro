@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Settings, Users, Layers, Shield, Save, CheckCircle2, Plus, 
   Trash2, Mail, MapPin, IndianRupee, Sparkles, User, HelpCircle, X, Wrench,
-  Edit2, AlertTriangle
+  Edit2, AlertTriangle, Building, Power, RefreshCw
 } from 'lucide-react';
 import { VenueSettings, TeamMember, VenueSpace } from '../types';
+import { getAdminTenantsApi, activateTenantApi, deactivateTenantApi } from '../api/tenants';
 
 interface SettingsViewProps {
   venueSettings: VenueSettings;
@@ -16,6 +17,11 @@ interface SettingsViewProps {
   onAddVenueSpace: (space: VenueSpace) => void;
   onDeleteVenueSpace: (id: string) => void;
   onUpdateVenueSpace: (space: VenueSpace) => void;
+  onAddTeamMember: (member: TeamMember) => void;
+  onUpdateTeamMember: (id: string, member: Partial<TeamMember>) => void;
+  onDeleteTeamMember: (id: string) => void;
+  role?: 'admin' | 'sales_agent';
+  tenantId?: string;
 }
 
 export default function SettingsView({
@@ -27,7 +33,12 @@ export default function SettingsView({
   venueSpaces,
   onAddVenueSpace,
   onDeleteVenueSpace,
-  onUpdateVenueSpace
+  onUpdateVenueSpace,
+  onAddTeamMember,
+  onUpdateTeamMember,
+  onDeleteTeamMember,
+  role = 'admin',
+  tenantId = ''
 }: SettingsViewProps) {
   // Local state for settings form
   const [nameInput, setNameInput] = useState(venueSettings.name);
@@ -47,6 +58,42 @@ export default function SettingsView({
   const [newFeaturesList, setNewFeaturesList] = useState<string[]>([]);
   const [editingSpace, setEditingSpace] = useState<VenueSpace | null>(null);
   const [deleteConfirmSpace, setDeleteConfirmSpace] = useState<VenueSpace | null>(null);
+
+  // Local state for team member creation
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [newMemberPhone, setNewMemberPhone] = useState('');
+  const [newMemberPassword, setNewMemberPassword] = useState('');
+  const [newMemberRole, setNewMemberRole] = useState<'Admin' | 'Manager' | 'Staff'>('Staff');
+  const [deleteConfirmMember, setDeleteConfirmMember] = useState<TeamMember | null>(null);
+
+  // Local state for editing team member
+  const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const [editMemberName, setEditMemberName] = useState('');
+  const [editMemberEmail, setEditMemberEmail] = useState('');
+  const [editMemberPhone, setEditMemberPhone] = useState('');
+  const [editMemberPassword, setEditMemberPassword] = useState('');
+  const [editMemberRole, setEditMemberRole] = useState<'Admin' | 'Manager' | 'Staff'>('Staff');
+
+  const handleSaveEditMember = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMember) return;
+    if (!editMemberName.trim() || !editMemberEmail.trim() || !editMemberPhone.trim() || !editMemberPassword.trim()) {
+      alert('All fields are required');
+      return;
+    }
+
+    onUpdateTeamMember(editingMember.id, {
+      name: editMemberName.trim(),
+      email: editMemberEmail.trim(),
+      phone: editMemberPhone.trim(),
+      password: editMemberPassword.trim(),
+      role: editMemberRole
+    });
+
+    setEditingMember(null);
+  };
 
   // Handle general save
   const handleSaveSettings = (e: React.FormEvent) => {
@@ -114,6 +161,37 @@ export default function SettingsView({
     setShowSpaceModal(false);
   };
 
+  const handleCreateMember = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMemberName.trim() || !newMemberEmail.trim() || !newMemberPhone.trim() || !newMemberPassword.trim()) {
+      alert('Please fill in all fields (name, email, phone, and password)');
+      return;
+    }
+
+    const newMember: TeamMember = {
+      id: `TEAM-${Date.now().toString().slice(-4)}`,
+      name: newMemberName.trim(),
+      email: newMemberEmail.trim(),
+      phone: newMemberPhone.trim(),
+      password: newMemberPassword.trim(),
+      role: newMemberRole,
+      status: 'Offline',
+      lastActive: new Date().toLocaleDateString('en-IN'),
+      avatar: '',
+      active: true
+    };
+
+    onAddTeamMember(newMember);
+
+    // Reset
+    setNewMemberName('');
+    setNewMemberEmail('');
+    setNewMemberPhone('');
+    setNewMemberPassword('');
+    setNewMemberRole('Staff');
+    setShowAddMemberModal(false);
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Action Header */}
@@ -121,6 +199,7 @@ export default function SettingsView({
         <h2 className="font-sans font-bold text-3xl text-[#1a1b22] tracking-tight">Venue Settings</h2>
         <p className="text-[#444653] text-sm mt-1">Configure general banquet values, surge ratios, and manage user authorizations.</p>
       </div>
+
 
       {/* Main Grid: Forms Left, Team & Spaces Right */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start">
@@ -259,10 +338,19 @@ export default function SettingsView({
         <div className="space-y-6">
           {/* Team Identity Switcher Card (Extremely cool interactive design) */}
           <div className="bg-white p-6 rounded-2xl border border-[#e3e1eb] shadow-sm space-y-4">
-            <h3 className="font-sans font-bold text-base text-[#1a1b22] flex items-center gap-1.5 border-b border-[#e3e1eb] pb-3">
-              <Users className="w-4.5 h-4.5 text-[#00288e]" />
-              <span>Back-Office Operators</span>
-            </h3>
+            <div className="flex justify-between items-center border-b border-[#e3e1eb] pb-3">
+              <h3 className="font-sans font-bold text-base text-[#1a1b22] flex items-center gap-1.5">
+                <Users className="w-4.5 h-4.5 text-[#00288e]" />
+                <span>Back-Office Operators</span>
+              </h3>
+              <button
+                onClick={() => setShowAddMemberModal(true)}
+                className="p-1.5 hover:bg-[#f4f2fc] text-[#00288e] rounded-lg transition-colors cursor-pointer"
+                title="Add Team Member"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
 
             <p className="text-[10px] text-[#444653] leading-relaxed font-semibold">
               Select any operator below to dynamically change the active session administrator throughout the workspace.
@@ -271,17 +359,20 @@ export default function SettingsView({
             <div className="space-y-2.5">
               {teamMembers.map((member) => {
                 const isActive = activeAdminId === member.id;
+                const isMemberActive = member.active !== false;
                 return (
                   <div
                     key={member.id}
-                    onClick={() => onSelectActiveAdmin(member)}
-                    className={`p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                    className={`p-3.5 rounded-xl border flex items-center justify-between transition-all ${
                       isActive 
                         ? 'bg-[#dde1ff]/35 border-[#00288e] ring-1 ring-[#00288e]' 
-                        : 'bg-white border-[#e3e1eb] hover:bg-[#f4f2fc]/30'
+                        : 'bg-white border-[#e3e1eb] hover:bg-[#f4f2fc]/10'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div 
+                      className="flex items-center gap-3 cursor-pointer flex-1"
+                      onClick={() => onSelectActiveAdmin(member)}
+                    >
                       {/* Avatar preview */}
                       <div className="w-9 h-9 rounded-full bg-[#dde1ff] overflow-hidden border border-[#c4c5d5]/30">
                         {member.avatar ? (
@@ -294,20 +385,73 @@ export default function SettingsView({
                       </div>
                       <div>
                         <h4 className="font-sans font-bold text-xs text-[#1a1b22] flex items-center gap-1.5">
-                          <span>{member.name}</span>
-                          {member.status === 'Online' && (
+                          <span className={isMemberActive ? '' : 'line-through text-[#8e90a6]'}>{member.name}</span>
+                          {member.status === 'Online' && isMemberActive && (
                             <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]"></span>
+                          )}
+                          {!isMemberActive && (
+                            <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">Deactivated</span>
                           )}
                         </h4>
                         <p className="text-[9px] text-[#444653] uppercase font-bold tracking-wider mt-0.5">{member.role}</p>
                       </div>
                     </div>
 
-                    {isActive && (
-                      <span className="text-[8px] uppercase tracking-widest font-extrabold bg-[#00288e] text-white px-2 py-0.5 rounded">
-                        Active
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {/* Edit Operator */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingMember(member);
+                          setEditMemberName(member.name);
+                          setEditMemberEmail(member.email || '');
+                          setEditMemberPhone(member.phone || '');
+                          setEditMemberPassword(member.password || '');
+                          setEditMemberRole(member.role);
+                        }}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 border border-blue-100 rounded-lg transition-colors cursor-pointer"
+                        title="Edit Operator"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      {/* Toggle Active status */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUpdateTeamMember(member.id, { active: !isMemberActive });
+                        }}
+                        className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                          isMemberActive 
+                            ? 'text-green-600 hover:bg-green-50 border-green-200' 
+                            : 'text-red-500 hover:bg-red-50 border-red-200'
+                        }`}
+                        title={isMemberActive ? 'Deactivate Operator' : 'Activate Operator'}
+                      >
+                        <Power className="w-3.5 h-3.5" />
+                      </button>
+
+                      {/* Delete Operator */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirmMember(member);
+                        }}
+                        className="p-1.5 text-red-600 hover:bg-red-50 border border-red-100 rounded-lg transition-colors cursor-pointer"
+                        title="Delete Operator"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      {isActive && (
+                        <span className="text-[8px] uppercase tracking-widest font-extrabold bg-[#00288e] text-white px-2 py-0.5 rounded">
+                          Active
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -503,6 +647,241 @@ export default function SettingsView({
                 Yes, Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Add New Team Member Modal */}
+      {showAddMemberModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl animate-scale-up">
+            <div className="flex justify-between items-center border-b border-[#e3e1eb] pb-3">
+              <h3 className="font-sans font-bold text-lg text-[#1a1b22]">Add New Back-Office Operator</h3>
+              <button 
+                onClick={() => setShowAddMemberModal(false)}
+                className="p-1 hover:bg-[#f4f2fc] rounded-full text-[#444653] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateMember} className="space-y-4 text-xs font-semibold">
+              {/* Operator Name */}
+              <div className="space-y-1">
+                <label className="text-[#444653] uppercase tracking-wider block">Operator Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newMemberName}
+                  onChange={(e) => setNewMemberName(e.target.value)}
+                  placeholder="E.g. Jordan Miller"
+                  className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl px-3 py-2.5 text-sm text-[#1a1b22] focus:outline-none focus:ring-1 focus:ring-[#00288e]"
+                />
+              </div>
+
+              {/* Operator Email */}
+              <div className="space-y-1">
+                <label className="text-[#444653] uppercase tracking-wider block">Email Address *</label>
+                <input
+                  type="email"
+                  required
+                  value={newMemberEmail}
+                  onChange={(e) => setNewMemberEmail(e.target.value)}
+                  placeholder="E.g. jordan@banquetpro.com"
+                  className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl px-3 py-2.5 text-sm text-[#1a1b22] focus:outline-none"
+                />
+              </div>
+
+              {/* Operator Phone */}
+              <div className="space-y-1">
+                <label className="text-[#444653] uppercase tracking-wider block">Phone Number *</label>
+                <input
+                  type="tel"
+                  required
+                  value={newMemberPhone}
+                  onChange={(e) => setNewMemberPhone(e.target.value)}
+                  placeholder="E.g. 9876543210"
+                  className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl px-3 py-2.5 text-sm text-[#1a1b22] focus:outline-none"
+                />
+              </div>
+
+              {/* Operator Password */}
+              <div className="space-y-1">
+                <label className="text-[#444653] uppercase tracking-wider block">Security Password *</label>
+                <input
+                  type="password"
+                  required
+                  value={newMemberPassword}
+                  onChange={(e) => setNewMemberPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl px-3 py-2.5 text-sm text-[#1a1b22] focus:outline-none"
+                />
+              </div>
+
+              {/* Operator Role */}
+              <div className="space-y-1">
+                <label className="text-[#444653] uppercase tracking-wider block">Role Access Level</label>
+                <select
+                  value={newMemberRole}
+                  onChange={(e) => setNewMemberRole(e.target.value as 'Admin' | 'Manager' | 'Staff')}
+                  className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl px-3 py-2.5 text-sm text-[#1a1b22] focus:outline-none cursor-pointer"
+                >
+                  <option value="Staff">Staff (Sales Agent)</option>
+                  <option value="Manager">Manager (Coordinator)</option>
+                  <option value="Admin">Admin (Full Owner)</option>
+                </select>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex justify-end gap-2.5 pt-4 border-t border-[#e3e1eb]">
+                <button
+                  type="button"
+                  onClick={() => setShowAddMemberModal(false)}
+                  className="px-4 py-2 bg-white text-[#444653] rounded-xl hover:bg-[#f4f2fc] border border-[#c4c5d5] cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#00288e] text-white rounded-xl hover:bg-[#1e40af] cursor-pointer"
+                >
+                  Register Operator
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Delete Team Member Confirmation Modal */}
+      {deleteConfirmMember && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl animate-scale-up text-center">
+            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-sans font-bold text-base text-[#1a1b22]">Delete Back-Office Operator?</h3>
+              <p className="text-[11px] text-[#444653] font-medium leading-relaxed">
+                Are you sure you want to delete <span className="font-bold text-[#1a1b22]">{deleteConfirmMember.name}</span>? This action is permanent and cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmMember(null)}
+                className="flex-1 py-2 bg-[#f4f2fc] text-[#444653] font-semibold text-xs rounded-xl hover:bg-[#e3e1eb] border border-[#c4c5d5]/30 cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteTeamMember(deleteConfirmMember.id);
+                  setDeleteConfirmMember(null);
+                }}
+                className="flex-1 py-2 bg-red-600 text-white font-semibold text-xs rounded-xl hover:bg-red-700 cursor-pointer transition-colors shadow-sm"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Team Member Modal */}
+      {editingMember && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl animate-scale-up">
+            <div className="flex justify-between items-center border-b border-[#e3e1eb] pb-3">
+              <h3 className="font-sans font-bold text-lg text-[#1a1b22]">Edit Back-Office Operator</h3>
+              <button 
+                onClick={() => setEditingMember(null)}
+                className="p-1 hover:bg-[#f4f2fc] rounded-full text-[#444653] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditMember} className="space-y-4 text-xs font-semibold">
+              {/* Operator Name */}
+              <div className="space-y-1">
+                <label className="text-[#444653] uppercase tracking-wider block">Operator Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editMemberName}
+                  onChange={(e) => setEditMemberName(e.target.value)}
+                  className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl px-3 py-2.5 text-sm text-[#1a1b22] focus:outline-none focus:ring-1 focus:ring-[#00288e]"
+                />
+              </div>
+
+              {/* Operator Email */}
+              <div className="space-y-1">
+                <label className="text-[#444653] uppercase tracking-wider block">Email Address *</label>
+                <input
+                  type="email"
+                  required
+                  value={editMemberEmail}
+                  onChange={(e) => setEditMemberEmail(e.target.value)}
+                  className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl px-3 py-2.5 text-sm text-[#1a1b22] focus:outline-none"
+                />
+              </div>
+
+              {/* Operator Phone */}
+              <div className="space-y-1">
+                <label className="text-[#444653] uppercase tracking-wider block">Phone Number *</label>
+                <input
+                  type="tel"
+                  required
+                  value={editMemberPhone}
+                  onChange={(e) => setEditMemberPhone(e.target.value)}
+                  className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl px-3 py-2.5 text-sm text-[#1a1b22] focus:outline-none"
+                />
+              </div>
+
+              {/* Operator Password / Reset Password */}
+              <div className="space-y-1">
+                <label className="text-[#444653] uppercase tracking-wider block">Security Password *</label>
+                <input
+                  type="text"
+                  required
+                  value={editMemberPassword}
+                  onChange={(e) => setEditMemberPassword(e.target.value)}
+                  placeholder="Enter new or existing password"
+                  className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl px-3 py-2.5 text-sm text-[#1a1b22] focus:outline-none font-bold"
+                />
+              </div>
+
+              {/* Operator Role */}
+              <div className="space-y-1">
+                <label className="text-[#444653] uppercase tracking-wider block">Role Access Level</label>
+                <select
+                  value={editMemberRole}
+                  onChange={(e) => setEditMemberRole(e.target.value as 'Admin' | 'Manager' | 'Staff')}
+                  className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl px-3 py-2.5 text-sm text-[#1a1b22] focus:outline-none cursor-pointer"
+                >
+                  <option value="Staff">Staff (Sales Agent)</option>
+                  <option value="Manager">Manager (Coordinator)</option>
+                  <option value="Admin">Admin (Full Owner)</option>
+                </select>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex justify-end gap-2.5 pt-4 border-t border-[#e3e1eb]">
+                <button
+                  type="button"
+                  onClick={() => setEditingMember(null)}
+                  className="px-4 py-2 bg-white text-[#444653] rounded-xl hover:bg-[#f4f2fc] border border-[#c4c5d5] cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#00288e] text-white rounded-xl hover:bg-[#1e40af] cursor-pointer"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

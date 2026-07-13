@@ -7,11 +7,21 @@ interface LoginResponse {
   role: 'admin' | 'sales_agent';
 }
 
-export async function loginApi(username: string, password: string, tenantId?: string): Promise<LoginResponse> {
+export async function loginApi(phone: string, password: string): Promise<LoginResponse> {
   const response = await api.post<LoginResponse>('/auth/login', {
+    phone,
+    password,
+  });
+
+  // Store token on successful login
+  setAuthToken(response.token);
+  return response;
+}
+
+export async function loginAppAdminApi(username: string, password: string): Promise<LoginResponse> {
+  const response = await api.post<LoginResponse>('/auth/login/appadmin', {
     username,
     password,
-    tenantId,
   });
 
   // Store token on successful login
@@ -27,4 +37,12 @@ export async function logoutApi(): Promise<void> {
   } finally {
     setAuthToken(null);
   }
+}
+
+export async function getTenantsApi(): Promise<any[]> {
+  return api.get<any[]>('/auth/tenants');
+}
+
+export async function registerTenantApi(data: any): Promise<any> {
+  return api.post<any>('/auth/register', data);
 }

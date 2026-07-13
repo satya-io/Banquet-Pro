@@ -41,6 +41,7 @@ export default function EnquiriesView({
   const [editPrice, setEditPrice] = useState<string>('');
   const [editBookingAmount, setEditBookingAmount] = useState<string>('');
   const [editMenu, setEditMenu] = useState<string[]>([]);
+  const [deleteConfirmEnquiry, setDeleteConfirmEnquiry] = useState<Enquiry | null>(null);
 
   React.useEffect(() => {
     if (selectedEnquiry) {
@@ -49,6 +50,34 @@ export default function EnquiriesView({
       setEditMenu(selectedEnquiry.menuSelection || []);
     }
   }, [selectedEnquiry?.id]);
+
+  const getWhatsAppMessageText = (enq: Enquiry) => {
+    let msg = `*Dear ${enq.customerName},*\n\n`;
+    msg += `Thank you for choosing *Grand Royal Banquet*! Here are the details of your event enquiry:\n\n`;
+    msg += `📅 *Event Date:* ${enq.eventDate}\n`;
+    msg += `📍 *Venue Space:* ${enq.venuePref}\n`;
+    msg += `👥 *Expected Guests:* ${enq.pax} Pax\n`;
+    msg += `💰 *Quoted Budget:* ₹${enq.budget.toLocaleString('en-IN')}\n`;
+    
+    if (enq.timeSlot) {
+      msg += `⏰ *Slot:* ${enq.timeSlot === 'Morning' ? 'Day Slot (10 AM - 4 PM)' : 'Night Slot (7 PM - 1 AM)'}\n`;
+    }
+    if (enq.startTime) {
+      msg += `⏰ *Start Time:* ${enq.startTime}\n`;
+    }
+
+    if (enq.menuSelection && enq.menuSelection.length > 0) {
+      msg += `\n*Selected Catering Inclusions:*\n`;
+      enq.menuSelection.forEach(item => {
+        msg += `✓ ${item}\n`;
+      });
+    }
+
+    msg += `\nWe look forward to hosting a memorable celebration for you! Please review these specifications. If everything looks good, we can proceed to finalize your booking.\n\n`;
+    msg += `Warm regards,\n*Grand Royal Banquet Team*`;
+
+    return encodeURIComponent(msg);
+  };
 
   const handleSaveSidebarEdits = () => {
     if (!selectedEnquiry) return;
@@ -300,7 +329,7 @@ export default function EnquiriesView({
                               <ChevronRight className="w-4 h-4" />
                             </button>
                             <a 
-                              href={`https://wa.me/${enq.phone.replace(/[^0-9]/g, '')}`}
+                              href={`https://wa.me/${enq.phone.replace(/[^0-9]/g, '')}?text=${getWhatsAppMessageText(enq)}`}
                               target="_blank"
                               rel="noreferrer"
                               className="p-1.5 hover:bg-[#6cf8bb]/30 text-[#00714d] rounded-lg transition-colors cursor-pointer"
@@ -310,10 +339,7 @@ export default function EnquiriesView({
                             </a>
                             <button 
                               onClick={() => {
-                                if (confirm(`Are you sure you want to delete enquiry for ${enq.customerName}?`)) {
-                                  onDeleteEnquiry(enq.id);
-                                  if (selectedEnquiry?.id === enq.id) onSelectEnquiry(null);
-                                }
+                                setDeleteConfirmEnquiry(enq);
                               }}
                               className="p-1.5 hover:bg-[#ffdad6] text-[#ba1a1a] rounded-lg transition-colors cursor-pointer"
                               title="Delete Enquiry"
@@ -575,6 +601,45 @@ export default function EnquiriesView({
           </div>
         )}
       </div>
+
+      {/* Custom Delete Confirmation Modal */}
+      {deleteConfirmEnquiry && (
+        <div className="fixed inset-0 bg-black/55 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-scale-up text-center">
+            <div className="mx-auto w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-600">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            
+            <div className="space-y-1.5">
+              <h3 className="font-sans font-extrabold text-base text-[#1a1b22]">Delete Enquiry?</h3>
+              <p className="text-xs text-[#444653] leading-relaxed">
+                Are you sure you want to delete the enquiry for <span className="font-bold text-[#1a1b22]">{deleteConfirmEnquiry.customerName}</span>? This record will be permanently deleted.
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmEnquiry(null)}
+                className="flex-1 py-2 bg-white text-[#444653] font-semibold text-xs rounded-xl hover:bg-[#f4f2fc] border border-[#c4c5d5] cursor-pointer transition-colors"
+              >
+                No, Keep it
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteEnquiry(deleteConfirmEnquiry.id);
+                  if (selectedEnquiry?.id === deleteConfirmEnquiry.id) onSelectEnquiry(null);
+                  setDeleteConfirmEnquiry(null);
+                }}
+                className="flex-1 py-2 bg-red-600 text-white font-semibold text-xs rounded-xl hover:bg-red-700 cursor-pointer transition-colors shadow-sm"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

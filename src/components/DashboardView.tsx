@@ -5,6 +5,7 @@ import {
   MoreVertical, FileText, Download, Users, Eye
 } from 'lucide-react';
 import { Booking, Enquiry } from '../types';
+import { printInvoice } from '../utils/print';
 
 interface DashboardViewProps {
   searchQuery: string;
@@ -27,6 +28,34 @@ export default function DashboardView({
 }: DashboardViewProps) {
 
 
+  const getWhatsAppMessageText = (enq: Enquiry) => {
+    let msg = `*Dear ${enq.customerName},*\n\n`;
+    msg += `Thank you for choosing *Grand Royal Banquet*! Here are the details of your event enquiry:\n\n`;
+    msg += `📅 *Event Date:* ${enq.eventDate}\n`;
+    msg += `📍 *Venue Space:* ${enq.venuePref}\n`;
+    msg += `👥 *Expected Guests:* ${enq.pax} Pax\n`;
+    msg += `💰 *Quoted Budget:* ₹${enq.budget.toLocaleString('en-IN')}\n`;
+    
+    if (enq.timeSlot) {
+      msg += `⏰ *Slot:* ${enq.timeSlot === 'Morning' ? 'Day Slot (10 AM - 4 PM)' : 'Night Slot (7 PM - 1 AM)'}\n`;
+    }
+    if (enq.startTime) {
+      msg += `⏰ *Start Time:* ${enq.startTime}\n`;
+    }
+
+    if (enq.menuSelection && enq.menuSelection.length > 0) {
+      msg += `\n*Selected Catering Inclusions:*\n`;
+      enq.menuSelection.forEach(item => {
+        msg += `✓ ${item}\n`;
+      });
+    }
+
+    msg += `\nWe look forward to hosting a memorable celebration for you! Please review these specifications. If everything looks good, we can proceed to finalize your booking.\n\n`;
+    msg += `Warm regards,\n*Grand Royal Banquet Team*`;
+
+    return encodeURIComponent(msg);
+  };
+
   // Filter inquiries based on global search
   const filteredEnquiries = enquiries.filter(enq => 
     enq.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -38,8 +67,14 @@ export default function DashboardView({
   const activeConfirmedBookings = bookings.filter(b => b.status === 'Booked' || b.status === 'Completed').slice(0, 3);
 
   // Stats calculation
-  const totalEnquiriesCount = enquiries.length + 118; // base offset to match "124" mockup
-  const confirmedBookingsCount = bookings.filter(b => b.status === 'Booked').length + 38; // matches "42" mockup
+  const totalEnquiriesCount = enquiries.length;
+  const confirmedBookingsCount = bookings.filter(b => b.status === 'Booked').length;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todaysEventsCount = bookings.filter(b => b.eventDate === todayStr && (b.status === 'Booked' || b.status === 'Completed')).length;
+
+  const activeBookings = bookings.filter(b => b.status === 'Booked' || b.status === 'Completed');
+  const totalRevenue = activeBookings.reduce((sum, b) => sum + (b.finalAmount || b.totalAmount), 0);
 
   const formatMoney = (amount: number) => {
     // Show lakhs formatted or literal rupees
@@ -113,7 +148,7 @@ export default function DashboardView({
           </div>
           <div>
             <p className="text-[#444653] text-xs uppercase font-semibold tracking-wider">Today's Events</p>
-            <h3 className="font-sans font-extrabold text-3xl text-[#1a1b22] mt-1">3</h3>
+            <h3 className="font-sans font-extrabold text-3xl text-[#1a1b22] mt-1">{todaysEventsCount}</h3>
           </div>
         </div>
 
@@ -131,7 +166,7 @@ export default function DashboardView({
           <div>
             <p className="text-[#444653] text-xs uppercase font-semibold tracking-wider">Monthly Revenue</p>
             <h3 className="font-sans font-extrabold text-3xl text-[#1a1b22] mt-1">
-              ₹12.5L
+              {formatMoney(totalRevenue)}
             </h3>
           </div>
         </div>
@@ -228,7 +263,7 @@ export default function DashboardView({
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <a 
-                    href={`https://wa.me/${enq.phone.replace(/[^0-9]/g, '')}`}
+                    href={`https://wa.me/${enq.phone.replace(/[^0-9]/g, '')}?text=${getWhatsAppMessageText(enq)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="p-2.5 bg-[#25D366] text-white rounded-xl hover:opacity-95 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
@@ -326,7 +361,7 @@ export default function DashboardView({
                   {/* Action row workflow */}
                   <div className="flex gap-3">
                     <button 
-                      onClick={() => alert(`Invoice generated for ${book.customerName} - ID: ${book.id}`)}
+                      onClick={() => printInvoice(book)}
                       className="flex-1 bg-[#00288e] text-white py-2 rounded-xl text-xs font-semibold hover:bg-[#1e40af] hover:scale-[1.01] active:scale-[0.99] transition-all shadow-sm cursor-pointer"
                     >
                       {book.pendingBalance === 0 ? 'Download Invoice' : 'Generate Invoice'}

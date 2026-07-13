@@ -23,6 +23,9 @@ export interface IEnquiry extends Document {
   bookingAmount?: number;
   pendingBalance?: number;
   menuSelection?: string[];
+  timeSlot?: 'Morning' | 'Evening';
+  startTime?: string;
+  referrerName?: string;
 }
 
 const EnquirySchema = new Schema<IEnquiry>({
@@ -32,6 +35,7 @@ const EnquirySchema = new Schema<IEnquiry>({
   phone: { type: String, required: true },
   email: String,
   source: String,
+  referrerName: String,
   eventDate: String,
   pax: Number,
   budget: Number,
@@ -43,6 +47,8 @@ const EnquirySchema = new Schema<IEnquiry>({
   bookingAmount: Number,
   pendingBalance: Number,
   menuSelection: [String],
+  timeSlot: { type: String, enum: ['Morning', 'Evening'] },
+  startTime: String,
 }, { timestamps: true });
 
 EnquirySchema.index({ tenantId: 1, id: 1 }, { unique: true });

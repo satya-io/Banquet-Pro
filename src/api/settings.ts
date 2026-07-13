@@ -12,3 +12,15 @@ export async function updateSettings(settings: VenueSettings): Promise<VenueSett
 export async function getTeamMembers(): Promise<TeamMember[]> {
   return api.get<TeamMember[]>('/settings/team');
 }
+
+export async function addTeamMember(member: TeamMember): Promise<TeamMember> {
+  return api.post<TeamMember>('/settings/team', member);
+}
+
+export async function updateTeamMember(id: string, member: Partial<TeamMember>): Promise<TeamMember> {
+  return api.put<TeamMember>(`/settings/team/${id}`, member);
+}
+
+export async function deleteTeamMember(id: string): Promise<void> {
+  return api.delete<void>(`/settings/team/${id}`);
+}

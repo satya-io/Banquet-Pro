@@ -36,7 +36,7 @@ export default function Sidebar({
 
   // Filter based on role
   const menuItems = userRole === 'sales_agent'
-    ? allMenuItems.filter(item => item.id === 'bookings' || item.id === 'calendar')
+    ? allMenuItems.filter(item => item.id === 'dashboard' || item.id === 'enquiries' || item.id === 'bookings' || item.id === 'calendar')
     : allMenuItems;
 
   return (

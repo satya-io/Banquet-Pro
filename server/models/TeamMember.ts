@@ -9,6 +9,9 @@ export interface ITeamMember extends Document {
   status: 'Online' | 'Offline';
   lastActive: string;
   avatar: string;
+  phone: string;
+  password: string;
+  active: boolean;
 }
 
 const TeamMemberSchema = new Schema<ITeamMember>({
@@ -20,6 +23,9 @@ const TeamMemberSchema = new Schema<ITeamMember>({
   status: { type: String, enum: ['Online', 'Offline'], default: 'Offline' },
   lastActive: String,
   avatar: String,
+  phone: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  active: { type: Boolean, default: true }
 }, { timestamps: true });
 
 TeamMemberSchema.index({ tenantId: 1, id: 1 }, { unique: true });
