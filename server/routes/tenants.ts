@@ -13,7 +13,7 @@ router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
       res.status(403).json({ error: 'Only system admins can list tenants.' });
       return;
     }
-    const tenants = await Tenant.find({});
+    const tenants = await Tenant.find({ tenantId: { $ne: 'TENANT-DEFAULT' } });
     res.json(tenants);
   } catch (error) {
     console.error('Get tenants error:', error);

@@ -13,7 +13,7 @@ const router = Router();
 // GET /api/auth/tenants (Public)
 router.get('/tenants', async (req, res): Promise<void> => {
   try {
-    const tenants = await Tenant.find({}, 'tenantId name ownerUsername staffUsername active');
+    const tenants = await Tenant.find({ tenantId: { $ne: 'TENANT-DEFAULT' } }, 'tenantId name ownerUsername staffUsername active');
     res.json(tenants);
   } catch (error) {
     console.error('Failed to list tenants:', error);

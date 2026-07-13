@@ -500,8 +500,8 @@ export const initialTeamMembers: TeamMember[] = [
 ];
 
 export const initialVenueSettings: VenueSettings = {
-  name: 'Grand Royal Banquet Hall',
-  email: 'ops@grandroyal.com',
+  name: 'Luxury Banquet Workspace',
+  email: 'ops@luxurybanquet.com',
   address: '12th Luxury Boulevard, Midtown Business District, NY 10001',
   logo: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBt_ZWAhHqrdHopiVZF8NocAQn_Z9Y-9RTOhqfBlRrJfEYleFAfAGxiIhdC5Ve_pA7hmB-9DQ3SVcPr0VHhAuh0YmiZZxoAMPvhsx5G34kwdp2caZnRW8rY0PDIT2Wcdk7-BidmA1PweRRALUZvkWXR_ptshS-n2XQh05uvOlzxnWPz622JGisjEX-bN3uNUndZS9A8mYo3sFr12j8xMBLqF9kTzGe0vErnoBjkImtD0nr4iMjlEClA2g',
   weekendSurge: true,

@@ -39,7 +39,7 @@ export default function App() {
   });
 
   const [tenantName, setTenantName] = useState<string>(() => {
-    return localStorage.getItem('tenantName') || 'Grand Royal Banquet Hall';
+    return localStorage.getItem('tenantName') || 'Luxury Banquet Workspace';
   });
 
   // UI state
