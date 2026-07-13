@@ -316,7 +316,7 @@ export default function LoginScreen({ onLogin, language, onLanguageChange }: Log
                     required
                     value={newVenueName}
                     onChange={(e) => setNewVenueName(e.target.value)}
-                    placeholder="E.g. Vrindavan Gardens"
+                    placeholder="E.g. Gymkhana Club"
                     className="w-full bg-[#f4f2fc] border border-[#c4c5d5] rounded-xl pl-10 pr-3 py-2 text-sm text-[#1a1b22] focus:outline-none font-bold"
                   />
                 </div>
