@@ -12,6 +12,7 @@
     "lint": "tsc --noEmit",
     "server:dev": "tsx watch server/index.ts",
     "server:seed": "tsx server/seed.ts",
+    "start": "tsx server/index.ts",
     "dev:full": "concurrently \"npm run server:dev\" \"npm run dev\""
   },
   "dependencies": {
